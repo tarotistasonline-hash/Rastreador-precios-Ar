@@ -1,0 +1,6 @@
+{
+  "name": "Rastreo de Precios AR",
+  "description": "Buscador inteligente de ofertas en tiempo real con IA, análisis de inflación y cuotas en Argentina.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
