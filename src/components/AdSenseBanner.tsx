@@ -17,9 +17,9 @@ export default function AdSenseBanner({
   const adRef = useRef<HTMLModElement | null>(null);
   const initializedRef = useRef(false);
 
-  // Retrieve AdSense Client ID from environment variables, fallback to a placeholder for visual presentation
-  const clientId = import.meta.env.VITE_ADSENSE_CLIENT_ID;
-  const isDemo = !clientId;
+  // Retrieve AdSense Client ID from environment variables, fallback to the user's provided Publisher ID
+  const clientId = import.meta.env.VITE_ADSENSE_CLIENT_ID || "ca-pub-8099027931324700";
+  const isDemo = !clientId || clientId === "ca-pub-1234567890123456";
 
   useEffect(() => {
     // If in demo mode, do not inject scripts or attempt layout pushes
