@@ -6,9 +6,16 @@ import SearchHistory from "./components/SearchHistory";
 import AnalysisSummary from "./components/AnalysisSummary";
 import CommunityHub from "./components/CommunityHub";
 import AdSenseBanner from "./components/AdSenseBanner";
-import { SearchResult, HistoryItem } from "./types";
+import CreatePriceAlert from "./components/CreatePriceAlert";
+import PriceAlertsManager from "./components/PriceAlertsManager";
+import ComparisonTable from "./components/ComparisonTable";
+import EmailNotificationSettings from "./components/EmailNotificationSettings";
+import IpcCalculator from "./components/IpcCalculator";
+import PotentialSavings from "./components/PotentialSavings";
+import { SearchResult, HistoryItem, PriceAlert, Offer } from "./types";
 import { generateClientFallback } from "./utils/fallback";
-import { Sparkles, HelpCircle, AlertCircle, ShoppingCart } from "lucide-react";
+import { Sparkles, HelpCircle, AlertCircle, ShoppingCart, Bell, TrendingDown, X } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -17,6 +24,35 @@ export default function App() {
   const [result, setResult] = useState<SearchResult | null>(null);
   const [searchedTerm, setSearchedTerm] = useState<string>("");
   const [visitorCount, setVisitorCount] = useState(15420);
+  const [alerts, setAlerts] = useState<PriceAlert[]>([]);
+  const [isRefreshingAlerts, setIsRefreshingAlerts] = useState(false);
+  const [triggeredAlertNotification, setTriggeredAlertNotification] = useState<PriceAlert | null>(null);
+  const [comparedOffers, setComparedOffers] = useState<Offer[]>([]);
+  const [comparisonWarning, setComparisonWarning] = useState<string | null>(null);
+  const [notificationEmail, setNotificationEmail] = useState<string>("");
+  const [extremeSavingsMode, setExtremeSavingsMode] = useState<boolean>(false);
+
+  // Load email from LocalStorage
+  useEffect(() => {
+    try {
+      const storedEmail = localStorage.getItem("price_tracker_ar_email");
+      if (storedEmail) {
+        setNotificationEmail(storedEmail);
+      }
+    } catch (err) {
+      console.error("Error loading notification email:", err);
+    }
+  }, []);
+
+  const handleSaveEmail = (email: string) => {
+    setNotificationEmail(email);
+    localStorage.setItem("price_tracker_ar_email", email);
+  };
+
+  const handleClearEmail = () => {
+    setNotificationEmail("");
+    localStorage.removeItem("price_tracker_ar_email");
+  };
 
   // Load visitor count and increment randomly
   useEffect(() => {
@@ -55,6 +91,144 @@ export default function App() {
     }
   }, []);
 
+  // Load price alerts from LocalStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("price_tracker_ar_alerts");
+      if (stored) {
+        setAlerts(JSON.parse(stored));
+      }
+    } catch (err) {
+      console.error("Error loading price alerts:", err);
+    }
+  }, []);
+
+  // Save alerts to state and LocalStorage
+  const saveAlerts = (newAlerts: PriceAlert[]) => {
+    try {
+      setAlerts(newAlerts);
+      localStorage.setItem("price_tracker_ar_alerts", JSON.stringify(newAlerts));
+    } catch (err) {
+      console.error("Error saving price alerts:", err);
+    }
+  };
+
+  // Helper to search a single product's lowest price for alert refreshing
+  const checkSingleAlert = async (query: string): Promise<{ lowestPrice: number; storeName: string } | null> => {
+    try {
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      let data: SearchResult;
+      if (!res.ok) {
+        data = generateClientFallback(query);
+      } else {
+        data = await res.json();
+      }
+
+      if (data && data.offers && data.offers.length > 0) {
+        const lowestOffer = data.offers.reduce((min, o) => {
+          if (o.price && (!min.price || o.price < min.price)) {
+            return o;
+          }
+          return min;
+        }, data.offers[0]);
+        return {
+          lowestPrice: lowestOffer.price || 0,
+          storeName: lowestOffer.shopName
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error("Error checking single alert:", err);
+      try {
+        const data = generateClientFallback(query);
+        if (data && data.offers && data.offers.length > 0) {
+          const lowestOffer = data.offers.reduce((min, o) => {
+            if (o.price && (!min.price || o.price < min.price)) {
+              return o;
+            }
+            return min;
+          }, data.offers[0]);
+          return {
+            lowestPrice: lowestOffer.price || 0,
+            storeName: lowestOffer.shopName
+          };
+        }
+      } catch (inner) {}
+      return null;
+    }
+  };
+
+  // Check and trigger alerts based on a search result
+  const checkAndTriggerAlertsForSearch = (searchResult: SearchResult, currentAlerts: PriceAlert[]) => {
+    if (!searchResult || !searchResult.offers || searchResult.offers.length === 0) return;
+
+    const lowestOffer = searchResult.offers.reduce((min, o) => {
+      if (o.price && (!min.price || o.price < min.price)) {
+        return o;
+      }
+      return min;
+    }, searchResult.offers[0]);
+
+    const lowestPrice = lowestOffer.price || 0;
+    const storeName = lowestOffer.shopName;
+
+    let updated = false;
+    let newlyTriggered: PriceAlert | null = null;
+
+    const newAlerts = currentAlerts.map((alert) => {
+      const matches = 
+        alert.productName.toLowerCase() === searchResult.productName.toLowerCase() ||
+        searchResult.productName.toLowerCase().includes(alert.productName.toLowerCase()) ||
+        alert.productName.toLowerCase().includes(searchResult.productName.toLowerCase());
+
+      if (matches) {
+        const wasTriggered = alert.isTriggered;
+        const isNowTriggered = lowestPrice <= alert.targetPrice;
+        
+        updated = true;
+
+        const updatedAlert = {
+          ...alert,
+          currentLowestPrice: lowestPrice,
+          storeName: storeName,
+          isTriggered: isNowTriggered,
+          triggeredAt: isNowTriggered && !wasTriggered ? new Date().toLocaleDateString("es-AR") : alert.triggeredAt,
+          isRead: isNowTriggered && !wasTriggered ? false : alert.isRead,
+        };
+
+        if (isNowTriggered && !wasTriggered) {
+          newlyTriggered = updatedAlert;
+        }
+
+        return updatedAlert;
+      }
+      return alert;
+    });
+
+    if (updated) {
+      saveAlerts(newAlerts);
+      if (newlyTriggered) {
+        setTriggeredAlertNotification(newlyTriggered);
+        if (notificationEmail) {
+          fetch("/api/alerts/notify-alert", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email: notificationEmail, alert: newlyTriggered }),
+          }).catch((err) => console.error("Error dispatching search-triggered email notification:", err));
+        }
+      }
+    }
+  };
+
   // Save query to history helper (retaining max 5)
   const saveToHistory = (query: string) => {
     try {
@@ -90,6 +264,8 @@ export default function App() {
     setError(null);
     setResult(null);
     setSearchedTerm(query);
+    setComparedOffers([]);
+    setComparisonWarning(null);
 
     try {
       const res = await fetch("/api/search", {
@@ -108,6 +284,7 @@ export default function App() {
       const data: SearchResult = await res.json();
       setResult(data);
       saveToHistory(query);
+      checkAndTriggerAlertsForSearch(data, alerts);
     } catch (err: any) {
       console.error("Error during search:", err);
       try {
@@ -115,6 +292,7 @@ export default function App() {
         const fallbackData = generateClientFallback(query);
         setResult(fallbackData);
         saveToHistory(query);
+        checkAndTriggerAlertsForSearch(fallbackData, alerts);
         // Set a mild info notice, but since results are loaded, we don't display it as a blocking error
         console.log("Client-side fallback generated successfully.");
       } catch (fallbackErr) {
@@ -149,6 +327,191 @@ export default function App() {
     });
   };
 
+  const handleCreateAlert = (targetPrice: number) => {
+    if (!result || !result.offers || result.offers.length === 0) return;
+
+    const lowestOffer = result.offers.reduce((min, o) => {
+      if (o.price && (!min.price || o.price < min.price)) {
+        return o;
+      }
+      return min;
+    }, result.offers[0]);
+
+    const lowestPrice = lowestOffer.price || 0;
+    const storeName = lowestOffer.shopName;
+
+    const filtered = alerts.filter(
+      (alert) => alert.productName.toLowerCase() !== result.productName.toLowerCase()
+    );
+
+    const newAlert: PriceAlert = {
+      id: Date.now().toString(),
+      productName: result.productName,
+      targetPrice,
+      initialPrice: lowestPrice,
+      currentLowestPrice: lowestPrice,
+      storeName,
+      createdAt: new Date().toLocaleDateString("es-AR"),
+      isTriggered: lowestPrice <= targetPrice,
+      triggeredAt: lowestPrice <= targetPrice ? new Date().toLocaleDateString("es-AR") : undefined,
+      isRead: false,
+    };
+
+    const newAlerts = [newAlert, ...filtered];
+    saveAlerts(newAlerts);
+
+    if (newAlert.isTriggered) {
+      setTriggeredAlertNotification(newAlert);
+      if (notificationEmail) {
+        fetch("/api/alerts/notify-alert", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: notificationEmail, alert: newAlert }),
+        }).catch((err) => console.error("Error dispatching immediately-triggered email notification:", err));
+      }
+    }
+  };
+
+  const handleDeleteAlert = (id: string) => {
+    const updated = alerts.filter((alert) => alert.id !== id);
+    saveAlerts(updated);
+  };
+
+  const handleMarkAsRead = (id: string) => {
+    const updated = alerts.map((alert) => {
+      if (alert.id === id) {
+        return { ...alert, isRead: true };
+      }
+      return alert;
+    });
+    saveAlerts(updated);
+  };
+
+  const handleRefreshAlerts = async () => {
+    if (alerts.length === 0) return;
+    setIsRefreshingAlerts(true);
+    
+    const updatedAlerts = [...alerts];
+    let triggeredAny = false;
+    let newlyTriggered: PriceAlert | null = null;
+
+    try {
+      for (let i = 0; i < updatedAlerts.length; i++) {
+        const alert = updatedAlerts[i];
+        const query = alert.productName;
+        
+        const resultData = await checkSingleAlert(query);
+        if (resultData) {
+          const { lowestPrice, storeName } = resultData;
+          const wasTriggered = alert.isTriggered;
+          const isNowTriggered = lowestPrice <= alert.targetPrice;
+          
+          updatedAlerts[i] = {
+            ...alert,
+            currentLowestPrice: lowestPrice,
+            storeName: storeName,
+            isTriggered: isNowTriggered,
+            triggeredAt: isNowTriggered && !wasTriggered ? new Date().toLocaleDateString("es-AR") : alert.triggeredAt,
+            isRead: isNowTriggered && !wasTriggered ? false : alert.isRead,
+          };
+
+          if (isNowTriggered && !wasTriggered) {
+            triggeredAny = true;
+            newlyTriggered = updatedAlerts[i];
+          }
+        }
+        
+        await new Promise((r) => setTimeout(r, 400));
+      }
+
+      saveAlerts(updatedAlerts);
+
+      if (triggeredAny && newlyTriggered) {
+        setTriggeredAlertNotification(newlyTriggered);
+        if (notificationEmail) {
+          fetch("/api/alerts/notify-alert", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email: notificationEmail, alert: newlyTriggered }),
+          }).catch((err) => console.error("Error dispatching refreshed email notification:", err));
+        }
+      }
+    } catch (err) {
+      console.error("Error refreshing alerts:", err);
+    } finally {
+      setIsRefreshingAlerts(false);
+    }
+  };
+
+  const handleToggleCompare = (offer: Offer) => {
+    setComparisonWarning(null);
+    const exists = comparedOffers.some((o) => o.shopName === offer.shopName);
+    if (exists) {
+      setComparedOffers(comparedOffers.filter((o) => o.shopName !== offer.shopName));
+    } else {
+      if (comparedOffers.length >= 3) {
+        setComparisonWarning("¡Solo podés comparar hasta 3 productos al mismo tiempo!");
+        setTimeout(() => setComparisonWarning(null), 5000);
+        return;
+      }
+      setComparedOffers([...comparedOffers, offer]);
+    }
+  };
+
+  const handleRemoveComparedOffer = (shopName: string) => {
+    setComparedOffers(comparedOffers.filter((o) => o.shopName !== shopName));
+    setComparisonWarning(null);
+  };
+
+  const handleClearComparison = () => {
+    setComparedOffers([]);
+    setComparisonWarning(null);
+  };
+
+  const isExtremeSavingsEligible = (offer: Offer) => {
+    const text = `${offer.discounts || ""} ${offer.paymentComparison || ""}`.toLowerCase();
+    const hasCuotas = (
+      text.includes("sin interés") ||
+      text.includes("sin interes") ||
+      text.includes("cero interés") ||
+      text.includes("cero interes") ||
+      text.includes("cuotas sin")
+    );
+    
+    const storeLower = offer.shopName.toLowerCase();
+    const hasDniOrBna = ["coto", "carrefour", "jumbo", "dia", "día", "vea", "changomas", "masonline", "provincia compras"].some(s => storeLower.includes(s));
+    
+    const hasBankDiscount = (
+      hasDniOrBna ||
+      text.includes("cuenta dni") ||
+      text.includes("modo") ||
+      text.includes("bna") ||
+      text.includes("nación") ||
+      text.includes("nacion") ||
+      text.includes("banco") ||
+      text.includes("provincia") ||
+      text.includes("naranja") ||
+      text.includes("cencosud") ||
+      text.includes("carrefour") ||
+      text.includes("club día") ||
+      text.includes("club dia") ||
+      text.includes("comunidad coto") ||
+      text.includes("reintegro") ||
+      text.includes("ahorro") ||
+      text.includes("descuento") ||
+      text.includes("club farmacity")
+    );
+    return hasCuotas || hasBankDiscount;
+  };
+
+  const displayedOffers = result?.offers 
+    ? (extremeSavingsMode ? result.offers.filter(isExtremeSavingsEligible) : result.offers)
+    : [];
+
   return (
     <div className="min-h-screen bg-[#070913] relative overflow-hidden flex flex-col font-sans selection:bg-pink-500 selection:text-white text-slate-100">
       
@@ -158,7 +521,7 @@ export default function App() {
       <div className="absolute bottom-[10%] left-[-10%] w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[140px] pointer-events-none -z-10 animate-pulse duration-[10000ms]" />
       <div className="absolute bottom-[-10%] right-[10%] w-[500px] h-[500px] bg-amber-600/10 rounded-full blur-[120px] pointer-events-none -z-10" />
 
-      <Header />
+      <Header extremeSavingsMode={extremeSavingsMode} onToggleExtremeSavings={setExtremeSavingsMode} />
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 sm:py-12 flex flex-col gap-8 relative z-10">
         
@@ -174,6 +537,27 @@ export default function App() {
             onSelect={handleSearch}
             onClear={handleClearHistory}
           />
+        </section>
+
+        {/* Private Price Alerts & Notifications Suite */}
+        <section className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <PriceAlertsManager
+              alerts={alerts}
+              onDeleteAlert={handleDeleteAlert}
+              onRefreshAlerts={handleRefreshAlerts}
+              isRefreshing={isRefreshingAlerts}
+              onMarkAsRead={handleMarkAsRead}
+            />
+          </div>
+          <div className="lg:col-span-1">
+            <EmailNotificationSettings
+              onSaveEmail={handleSaveEmail}
+              savedEmail={notificationEmail}
+              onClearEmail={handleClearEmail}
+              activeAlertsCount={alerts.filter(a => !a.isTriggered).length}
+            />
+          </div>
         </section>
 
         {/* Live Community & Support Hub */}
@@ -301,25 +685,131 @@ export default function App() {
               />
             </section>
 
+            {/* Price Alert Creation Widget */}
+            {result.offers && result.offers.length > 0 && (
+              <section className="w-full">
+                <CreatePriceAlert
+                  productName={result.productName}
+                  currentLowestPrice={result.offers.reduce((min, o) => (o.price && o.price < min) ? o.price : min, result.offers[0]?.price || 0)}
+                  storeName={result.offers.reduce((best, o) => (o.price && o.price < (best.price || Infinity)) ? o : best, result.offers[0])?.shopName || "Coto"}
+                  onCreateAlert={handleCreateAlert}
+                  existingAlerts={alerts}
+                  marketAveragePrice={
+                    result.offers.filter(o => typeof o.price === "number" && o.price > 0).length > 0
+                      ? result.offers.filter(o => typeof o.price === "number" && o.price > 0).reduce((sum, o) => sum + (o.price || 0), 0) / result.offers.filter(o => typeof o.price === "number" && o.price > 0).length
+                      : undefined
+                  }
+                />
+              </section>
+            )}
+
+            {/* IPC Inflation Adjustment Tool */}
+            {result.offers && result.offers.length > 0 && (
+              <section className="w-full">
+                <IpcCalculator currentOffers={result.offers} />
+              </section>
+            )}
+
+            {/* Potential Savings Calculator & Chart */}
+            {result.offers && result.offers.length > 0 && (
+              <section className="w-full">
+                <PotentialSavings offers={result.offers} productName={result.productName} />
+              </section>
+            )}
+
+            {/* Side-by-Side Comparison Section */}
+            {result.offers && result.offers.length > 0 && comparedOffers.length > 0 && (
+              <section className="w-full space-y-3">
+                <AnimatePresence>
+                  {comparisonWarning && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="w-full bg-rose-950/20 border-2 border-rose-500/30 rounded-2xl p-4 flex items-center gap-3 text-rose-300 text-xs font-semibold shadow-md"
+                    >
+                      <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 animate-bounce" />
+                      <span>{comparisonWarning}</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <ComparisonTable
+                  selectedOffers={comparedOffers}
+                  productName={result.productName}
+                  onRemoveOffer={handleRemoveComparedOffer}
+                  onClearComparison={handleClearComparison}
+                />
+              </section>
+            )}
+
             {/* List of pricing cards */}
             <section className="w-full">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="bg-[#131B2E] p-1.5 rounded-lg text-sky-400 border border-slate-800">
-                  <ShoppingCart className="w-5 h-5" />
+              <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="bg-[#131B2E] p-1.5 rounded-lg text-sky-400 border border-slate-800">
+                    <ShoppingCart className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-display font-bold text-lg text-white">
+                    Ofertas Encontradas y Comparativas
+                  </h3>
                 </div>
-                <h3 className="font-display font-bold text-lg text-white">
-                  Ofertas Encontradas y Comparativas
-                </h3>
+                {result.offers && result.offers.length > 1 && (
+                  <div className="text-xs text-slate-400 font-medium bg-indigo-950/20 border border-indigo-950 px-3 py-1.5 rounded-xl">
+                    💡 Hacé clic en <strong className="text-pink-400">+ Comparar</strong> en {comparedOffers.length === 0 ? "las ofertas" : "otras tiendas"} para verlas lado a lado ({comparedOffers.length}/3)
+                  </div>
+                )}
               </div>
 
-              {result.offers && result.offers.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {result.offers.map((offer, idx) => (
-                    <div key={`${offer.shopName}-${idx}`} className="h-full">
-                      <OfferCard offer={offer} onUpdatePrice={handleUpdateOfferPrice} />
-                    </div>
-                  ))}
+              {extremeSavingsMode && result.offers && result.offers.length > 0 && (
+                <div className="w-full bg-amber-500/10 border border-amber-500/35 rounded-2xl px-5 py-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-amber-500/5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-2 w-2 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                    </span>
+                    <p className="text-xs sm:text-sm text-amber-200 font-sans font-bold">
+                      🔥 Modo Ahorro Extremo Activo: Filtrando para mostrar solo opciones con cuotas sin interés o descuentos bancarios activos.
+                    </p>
+                  </div>
+                  <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-xl font-sans font-black shrink-0">
+                    {result.offers.length - displayedOffers.length} {result.offers.length - displayedOffers.length === 1 ? "oferta oculta" : "ofertas ocultas"}
+                  </span>
                 </div>
+              )}
+
+              {result.offers && result.offers.length > 0 ? (
+                displayedOffers.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {displayedOffers.map((offer, idx) => {
+                      const isSelected = comparedOffers.some((o) => o.shopName === offer.shopName);
+                      return (
+                        <div key={`${offer.shopName}-${idx}`} className="h-full">
+                          <OfferCard
+                            offer={offer}
+                            onUpdatePrice={handleUpdateOfferPrice}
+                            isSelected={isSelected}
+                            onToggleCompare={() => handleToggleCompare(offer)}
+                            showCompareOption={result.offers.length > 1}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="bg-[#131B2E] border border-slate-800 rounded-2xl p-8 text-center max-w-md mx-auto shadow-2xl">
+                    <HelpCircle className="w-12 h-12 text-amber-400 mx-auto mb-3 animate-bounce" />
+                    <h4 className="font-display font-bold text-white">Ninguna oferta cumple el Modo Ahorro Extremo</h4>
+                    <p className="text-slate-400 text-sm mt-1.5 font-sans leading-relaxed">
+                      Ninguna de las {result.offers.length} tiendas encontradas tiene cuotas sin interés o beneficios bancarios disponibles para este producto hoy.
+                    </p>
+                    <button
+                      onClick={() => setExtremeSavingsMode(false)}
+                      className="mt-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-black px-4 py-2.5 rounded-xl hover:brightness-110 active:scale-98 transition-all cursor-pointer"
+                    >
+                      Desactivar Filtro
+                    </button>
+                  </div>
+                )
               ) : (
                 <div className="bg-[#131B2E] border border-slate-800 rounded-2xl p-8 text-center max-w-md mx-auto shadow-2xl">
                   <HelpCircle className="w-12 h-12 text-slate-500 mx-auto mb-3" />
@@ -554,6 +1044,78 @@ export default function App() {
 
         </div>
       </footer>
+
+      {/* Real-time price alert notification toast */}
+      <AnimatePresence>
+        {triggeredAlertNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-50 w-full max-w-sm px-4 sm:px-0"
+          >
+            <div className="bg-[#0b101f] border-2 border-emerald-500 rounded-3xl p-5 shadow-[0_10px_40px_rgba(16,185,129,0.3)] relative overflow-hidden backdrop-blur-md">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 animate-pulse" />
+              
+              <div className="flex gap-3">
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/35 rounded-2xl text-emerald-400 shrink-0 h-12 w-12 flex items-center justify-center animate-bounce">
+                  <Bell className="w-6 h-6" />
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <span className="text-[9px] font-black tracking-widest text-emerald-400 uppercase flex items-center gap-1 mb-1">
+                    <Sparkles className="w-3 h-3 text-emerald-400 animate-spin" /> ¡ALERTA DE PRECIO DETECTADA!
+                  </span>
+                  <h4 className="font-sans font-black text-white text-sm leading-tight truncate">
+                    {triggeredAlertNotification.productName}
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-1.5 leading-relaxed font-medium">
+                    Bajó a <strong className="text-emerald-400 font-mono text-sm">${triggeredAlertNotification.currentLowestPrice.toLocaleString("es-AR")}</strong> en <span className="text-white font-semibold">{triggeredAlertNotification.storeName}</span>.
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1 font-sans">
+                    Tu objetivo era: <span className="text-pink-400 font-mono font-bold">${triggeredAlertNotification.targetPrice.toLocaleString("es-AR")}</span> (¡Ahorrás ${(triggeredAlertNotification.initialPrice - triggeredAlertNotification.currentLowestPrice).toLocaleString("es-AR")}!)
+                  </p>
+                  
+                  <div className="flex items-center gap-2 mt-4">
+                    <button
+                      onClick={() => {
+                        const storeSlug = triggeredAlertNotification.storeName.replace(/\s+/g, '-').toLowerCase();
+                        const element = document.getElementById(`offer-card-${storeSlug}`);
+                        if (element) {
+                          element.scrollIntoView({ behavior: "smooth", block: "center" });
+                          element.classList.add("ring-4", "ring-emerald-500/50");
+                          setTimeout(() => element.classList.remove("ring-4"), 3000);
+                        } else {
+                          handleSearch(triggeredAlertNotification.productName);
+                        }
+                        setTriggeredAlertNotification(null);
+                      }}
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-display font-black text-[10px] py-2 px-3 rounded-xl uppercase tracking-wider transition-all hover:scale-102 cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <TrendingDown className="w-3.5 h-3.5" />
+                      <span>Ver Oferta</span>
+                    </button>
+                    <button
+                      onClick={() => setTriggeredAlertNotification(null)}
+                      className="px-3 py-2 bg-slate-900 hover:bg-[#131a30] text-slate-400 hover:text-white border border-indigo-950 rounded-xl text-[10px] font-display font-black uppercase tracking-wider transition-all cursor-pointer"
+                    >
+                      Entendido
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Close Button */}
+              <button
+                onClick={() => setTriggeredAlertNotification(null)}
+                className="absolute top-4 right-4 p-1 hover:bg-slate-900 rounded-lg text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

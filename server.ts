@@ -713,6 +713,51 @@ Debes responder ÚNICAMENTE con un objeto JSON estructurado que siga el esquema 
   }
 });
 
+// Endpoint to register/subscribe user's email for price alerts
+app.post("/api/alerts/subscribe", (req, res) => {
+  const { email } = req.body;
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    return res.status(400).json({ error: "Por favor provea un correo electrónico válido." });
+  }
+
+  console.log(`[Email Subscription] User subscribed: ${email}`);
+
+  return res.json({
+    success: true,
+    message: `¡Suscripción exitosa para ${email}! Recibirás notificaciones por correo cuando bajen los precios de tus productos favoritos.`,
+  });
+});
+
+// Endpoint to simulate sending a test notification email
+app.post("/api/alerts/test-notify", (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: "Correo electrónico no provisto." });
+  }
+
+  console.log(`[Email Notification] Simulated test notification sent to ${email}`);
+
+  return res.json({
+    success: true,
+    message: `Se ha enviado un correo electrónico de prueba a ${email}.`,
+  });
+});
+
+// Endpoint to simulate sending an actual alert trigger notification
+app.post("/api/alerts/notify-alert", (req, res) => {
+  const { email, alert } = req.body;
+  if (!email || !alert) {
+    return res.status(400).json({ error: "Datos insuficientes para la notificación." });
+  }
+
+  console.log(`[Email Notification] Alert triggered! Simulated email notification sent to ${email} for product: ${alert.productName}`);
+
+  return res.json({
+    success: true,
+    message: `Notificación de oferta enviada con éxito a ${email} para el producto "${alert.productName}".`,
+  });
+});
+
 // Serve static React app and manage Vite Middleware
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

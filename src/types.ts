@@ -24,3 +24,16 @@ export interface HistoryItem {
   query: string;
   timestamp: string;
 }
+
+export interface PriceAlert {
+  id: string;
+  productName: string;
+  targetPrice: number;
+  initialPrice: number;
+  currentLowestPrice: number;
+  storeName: string;
+  createdAt: string;
+  isTriggered: boolean;
+  triggeredAt?: string;
+  isRead?: boolean;
+}

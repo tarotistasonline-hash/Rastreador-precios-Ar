@@ -6,9 +6,18 @@ import { motion } from "motion/react";
 interface OfferCardProps {
   offer: Offer;
   onUpdatePrice?: (shopName: string, newPrice: number) => void;
+  isSelected?: boolean;
+  onToggleCompare?: () => void;
+  showCompareOption?: boolean;
 }
 
-export default function OfferCard({ offer, onUpdatePrice }: OfferCardProps) {
+export default function OfferCard({ 
+  offer, 
+  onUpdatePrice,
+  isSelected = false,
+  onToggleCompare,
+  showCompareOption = true,
+}: OfferCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
 
@@ -161,13 +170,31 @@ export default function OfferCard({ offer, onUpdatePrice }: OfferCardProps) {
 
       {/* Store & Price header */}
       <div className="flex justify-between items-start gap-3 mb-4 mt-1">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-[#060810] border-2 border-indigo-950 rounded-xl shadow-inner">
-            <Store className={`w-5 h-5 ${style.brandColor}`} />
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-[#060810] border-2 border-indigo-950 rounded-xl shadow-inner">
+              <Store className={`w-5 h-5 ${style.brandColor}`} />
+            </div>
+            <span className="font-display font-black text-lg text-white tracking-tight">
+              {offer.shopName}
+            </span>
           </div>
-          <span className="font-display font-black text-lg text-white tracking-tight">
-            {offer.shopName}
-          </span>
+          {showCompareOption && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCompare?.();
+              }}
+              className={`px-3 py-1 rounded-xl border font-display font-black text-[9px] tracking-wider uppercase transition-all flex items-center gap-1.5 cursor-pointer select-none self-start ${
+                isSelected
+                  ? "bg-pink-500 text-white border-pink-400 shadow-[0_0_10px_rgba(236,72,153,0.3)] hover:bg-pink-600"
+                  : "bg-[#060810] hover:bg-[#121626] border-indigo-950 text-slate-400 hover:text-white"
+              }`}
+            >
+              {isSelected ? <Check className="w-2.5 h-2.5 stroke-[3px]" /> : null}
+              <span>{isSelected ? "Comparando" : "+ Comparar"}</span>
+            </button>
+          )}
         </div>
         <div className="text-right flex flex-col items-end">
           {isEditing ? (

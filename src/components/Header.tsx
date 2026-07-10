@@ -1,10 +1,15 @@
-import { SearchCode, TrendingUp } from "lucide-react";
+import { SearchCode, TrendingUp, Zap } from "lucide-react";
 
-export default function Header() {
+interface HeaderProps {
+  extremeSavingsMode: boolean;
+  onToggleExtremeSavings: (enabled: boolean) => void;
+}
+
+export default function Header({ extremeSavingsMode, onToggleExtremeSavings }: HeaderProps) {
   return (
     <header className="w-full bg-[#0B0F19]/90 backdrop-blur-md border-b border-slate-800/60 sticky top-0 z-50 py-4 px-4 sm:px-6">
-      <div className="max-w-6xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 self-start md:self-auto">
           <div className="bg-gradient-to-tr from-pink-500 via-purple-600 to-cyan-500 text-white p-2.5 rounded-2xl shadow-xl shadow-purple-500/25 flex items-center justify-center transform hover:rotate-12 transition-transform duration-300">
             <SearchCode className="w-6 h-6 animate-pulse" />
           </div>
@@ -22,11 +27,29 @@ export default function Header() {
           </div>
         </div>
         
-        <div className="hidden sm:flex items-center gap-2 text-slate-200 bg-gradient-to-r from-slate-900 to-[#1E1B4B] border border-indigo-500/30 px-4 py-2 rounded-2xl text-xs font-sans font-bold shadow-lg shadow-indigo-500/5">
-          <TrendingUp className="w-4 h-4 text-emerald-400 animate-bounce" />
-          <span>Inflación vs Cuotas • Tiempo Real</span>
+        <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+          {/* Extreme Savings Mode Toggle */}
+          <button
+            onClick={() => onToggleExtremeSavings(!extremeSavingsMode)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-display font-black uppercase tracking-wider transition-all cursor-pointer active:scale-98 border select-none ${
+              extremeSavingsMode
+                ? "bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 text-white border-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.35)] animate-pulse"
+                : "bg-slate-900/80 hover:bg-[#131a30] text-slate-400 hover:text-slate-200 border-indigo-950"
+            }`}
+            id="extreme-savings-toggle-btn"
+            title="Activar para ver solo ofertas con cuotas sin interés o descuentos bancarios activos"
+          >
+            <Zap className={`w-4 h-4 ${extremeSavingsMode ? "text-amber-300 animate-bounce fill-amber-300" : "text-slate-500"}`} />
+            <span>🔥 Ahorro Extremo {extremeSavingsMode ? "ON" : "OFF"}</span>
+          </button>
+
+          <div className="hidden sm:flex items-center gap-2 text-slate-200 bg-gradient-to-r from-slate-900 to-[#1E1B4B] border border-indigo-500/30 px-4 py-2.5 rounded-2xl text-xs font-sans font-bold shadow-lg shadow-indigo-500/5 shrink-0">
+            <TrendingUp className="w-4 h-4 text-emerald-400 animate-bounce" />
+            <span>Inflación vs Cuotas • Tiempo Real</span>
+          </div>
         </div>
       </div>
     </header>
   );
 }
+
