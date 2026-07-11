@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Header from "./components/Header";
 import SearchBox from "./components/SearchBox";
 import OfferCard from "./components/OfferCard";
@@ -14,8 +14,9 @@ import IpcCalculator from "./components/IpcCalculator";
 import PotentialSavings from "./components/PotentialSavings";
 import { SearchResult, HistoryItem, PriceAlert, Offer } from "./types";
 import { generateClientFallback } from "./utils/fallback";
-import { Sparkles, HelpCircle, AlertCircle, ShoppingCart, Bell, TrendingDown, X } from "lucide-react";
+import { Sparkles, HelpCircle, AlertCircle, ShoppingCart, Bell, TrendingDown, X, WifiOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { initMixpanel, trackEvent } from "./utils/mixpanel";
 
 export default function App() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -31,6 +32,28 @@ export default function App() {
   const [comparisonWarning, setComparisonWarning] = useState<string | null>(null);
   const [notificationEmail, setNotificationEmail] = useState<string>("");
   const [extremeSavingsMode, setExtremeSavingsMode] = useState<boolean>(false);
+  const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
+
+  // Initialize Mixpanel and track session launch
+  useEffect(() => {
+    initMixpanel();
+    trackEvent("session_start", {
+      app_name: "Rastreo de Precios AR"
+    });
+  }, []);
+
+  // Track Extreme Savings Mode changes
+  const isFirstExtremeSavingsRender = useRef(true);
+  useEffect(() => {
+    if (isFirstExtremeSavingsRender.current) {
+      isFirstExtremeSavingsRender.current = false;
+      return;
+    }
+    trackEvent("extreme_savings_toggled", {
+      enabled: extremeSavingsMode,
+      searched_term: searchedTerm
+    });
+  }, [extremeSavingsMode]);
 
   // Load email from LocalStorage
   useEffect(() => {
@@ -47,11 +70,13 @@ export default function App() {
   const handleSaveEmail = (email: string) => {
     setNotificationEmail(email);
     localStorage.setItem("price_tracker_ar_email", email);
+    trackEvent("notification_email_updated", { has_email: true });
   };
 
   const handleClearEmail = () => {
     setNotificationEmail("");
     localStorage.removeItem("price_tracker_ar_email");
+    trackEvent("notification_email_updated", { has_email: false });
   };
 
   // Load visitor count and increment randomly
@@ -266,6 +291,7 @@ export default function App() {
     setSearchedTerm(query);
     setComparedOffers([]);
     setComparisonWarning(null);
+    setIsOfflineMode(false);
 
     try {
       const res = await fetch("/api/search", {
@@ -285,8 +311,16 @@ export default function App() {
       setResult(data);
       saveToHistory(query);
       checkAndTriggerAlertsForSearch(data, alerts);
+      setIsOfflineMode(false);
+      trackEvent("search_performed", {
+        query,
+        is_fallback: false,
+        offers_count: data.offers?.length || 0,
+        lowest_price: data.offers && data.offers.length > 0 ? Math.min(...data.offers.map(o => o.price || 0)) : 0
+      });
     } catch (err: any) {
       console.error("Error during search:", err);
+      setIsOfflineMode(true);
       try {
         // Fallback to client-side database estimates immediately
         const fallbackData = generateClientFallback(query);
@@ -295,8 +329,19 @@ export default function App() {
         checkAndTriggerAlertsForSearch(fallbackData, alerts);
         // Set a mild info notice, but since results are loaded, we don't display it as a blocking error
         console.log("Client-side fallback generated successfully.");
+        trackEvent("search_performed", {
+          query,
+          is_fallback: true,
+          fallback_reason: err.message || "Network error",
+          offers_count: fallbackData.offers?.length || 0,
+          lowest_price: fallbackData.offers && fallbackData.offers.length > 0 ? Math.min(...fallbackData.offers.map(o => o.price || 0)) : 0
+        });
       } catch (fallbackErr) {
         setError(err.message || "No se pudo conectar con el servicio de rastreo.");
+        trackEvent("search_failed", {
+          query,
+          error_message: err.message || "No se pudo conectar con el servicio de rastreo."
+        });
       }
     } finally {
       setIsLoading(false);
@@ -305,6 +350,9 @@ export default function App() {
 
   const handleUpdateOfferPrice = (shopName: string, newPrice: number) => {
     if (!result) return;
+    const originalOffer = result.offers.find((o) => o.shopName === shopName);
+    const oldPrice = originalOffer ? originalOffer.price : undefined;
+
     const updatedOffers = result.offers.map((offer) => {
       if (offer.shopName === shopName) {
         const formattedPrice = `$ ${newPrice.toLocaleString("es-AR")}`;
@@ -324,6 +372,14 @@ export default function App() {
     setResult({
       ...result,
       offers: updatedOffers
+    });
+
+    trackEvent("price_updated_by_user", {
+      product_name: result.productName,
+      shop_name: shopName,
+      old_price: oldPrice,
+      new_price: newPrice,
+      price_difference: oldPrice !== undefined ? newPrice - oldPrice : 0
     });
   };
 
@@ -360,6 +416,14 @@ export default function App() {
     const newAlerts = [newAlert, ...filtered];
     saveAlerts(newAlerts);
 
+    trackEvent("price_alert_created", {
+      product_name: newAlert.productName,
+      target_price: newAlert.targetPrice,
+      initial_price: newAlert.initialPrice,
+      is_triggered_immediately: newAlert.isTriggered,
+      store_name: newAlert.storeName
+    });
+
     if (newAlert.isTriggered) {
       setTriggeredAlertNotification(newAlert);
       if (notificationEmail) {
@@ -375,8 +439,14 @@ export default function App() {
   };
 
   const handleDeleteAlert = (id: string) => {
+    const deletedAlert = alerts.find((alert) => alert.id === id);
     const updated = alerts.filter((alert) => alert.id !== id);
     saveAlerts(updated);
+
+    trackEvent("price_alert_deleted", {
+      product_name: deletedAlert ? deletedAlert.productName : "unknown",
+      target_price: deletedAlert ? deletedAlert.targetPrice : 0
+    });
   };
 
   const handleMarkAsRead = (id: string) => {
@@ -450,6 +520,14 @@ export default function App() {
   const handleToggleCompare = (offer: Offer) => {
     setComparisonWarning(null);
     const exists = comparedOffers.some((o) => o.shopName === offer.shopName);
+    
+    trackEvent("compare_offer_toggled", {
+      shop_name: offer.shopName,
+      price: offer.price,
+      is_added: !exists,
+      product_name: result?.productName || searchedTerm
+    });
+
     if (exists) {
       setComparedOffers(comparedOffers.filter((o) => o.shopName !== offer.shopName));
     } else {
@@ -463,11 +541,24 @@ export default function App() {
   };
 
   const handleRemoveComparedOffer = (shopName: string) => {
+    const removedOffer = comparedOffers.find((o) => o.shopName === shopName);
+    trackEvent("compare_offer_toggled", {
+      shop_name: shopName,
+      price: removedOffer ? removedOffer.price : undefined,
+      is_added: false,
+      product_name: result?.productName || searchedTerm,
+      method: "remove_button"
+    });
+
     setComparedOffers(comparedOffers.filter((o) => o.shopName !== shopName));
     setComparisonWarning(null);
   };
 
   const handleClearComparison = () => {
+    trackEvent("compare_cleared", {
+      compared_count: comparedOffers.length
+    });
+
     setComparedOffers([]);
     setComparisonWarning(null);
   };
@@ -667,7 +758,89 @@ export default function App() {
         {result && !isLoading && (
           <div className="w-full space-y-8 animate-fadeIn">
             
-            {result.isFallback && (
+            {isOfflineMode ? (
+              <div className="w-full max-w-4xl mx-auto bg-orange-950/25 border-2 border-orange-500/35 rounded-3xl p-6 shadow-xl shadow-orange-950/5 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-2xl shrink-0 shadow-lg shadow-orange-500/20 flex items-center justify-center animate-pulse">
+                      <WifiOff className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-orange-500 animate-ping inline-block" />
+                        Modo Offline / Servidor Alternativo Activo
+                      </span>
+                      <h3 className="font-display font-black text-white text-lg tracking-tight">
+                        La API principal no respondió, ¡pero el rastreador local está en marcha!
+                      </h3>
+                      <p className="text-xs text-slate-300 leading-relaxed max-w-2xl font-medium">
+                        Hemos activado la contingencia de estimaciones locales en tiempo real para evitar que te quedes sin comparar precios. Seguí estos pasos recomendados para aprovechar al máximo la búsqueda local:
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 bg-slate-950/60 p-4.5 rounded-2xl border border-indigo-950/40">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-500/20 text-orange-300 font-display font-black text-xs">
+                        1
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-bold text-white block">Usá palabras clave populares</span>
+                        <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+                          Nuestra base local tiene excelentes estimaciones para: <strong className="text-orange-300">leche, fideos, yerba, café, aceite</strong> y productos de almacén cotidianos.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-500/20 text-orange-300 font-display font-black text-xs">
+                        2
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-bold text-white block">Editá precios a tu medida</span>
+                        <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+                          ¿Viste un precio distinto en tu sucursal? Usá el ícono de lápiz (<strong className="text-orange-300">✏️</strong>) en cada tarjeta para corregirlo y actualizar las cuotas al instante.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-500/20 text-orange-300 font-display font-black text-xs">
+                        3
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-bold text-white block">Compará y descarga reportes</span>
+                        <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+                          Seleccioná múltiples tiendas para armar tu tabla comparativa y pulsa el botón <strong className="text-orange-300">Descargar CSV</strong> para Excel.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-500/20 text-orange-300 font-display font-black text-xs">
+                        4
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-bold text-white block">Reintentá cuando tengas señal</span>
+                        <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+                          Podés forzar una nueva conexión pulsando el botón de reintento para obtener precios en vivo actualizados desde los servidores oficiales.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 self-end mt-1">
+                    <button
+                      onClick={() => handleSearch(searchedTerm)}
+                      className="bg-gradient-to-r from-orange-500 to-amber-600 hover:brightness-110 text-white text-xs font-display font-black uppercase tracking-wider px-5 py-2.5 rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/10 active:scale-98 flex items-center gap-1.5"
+                    >
+                      <span>Reintentar Búsqueda En Vivo</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : result.isFallback && (
               <div className="w-full max-w-4xl mx-auto bg-amber-950/20 border-2 border-amber-500/30 rounded-2xl p-4 flex items-start sm:items-center gap-3 shadow-md">
                 <AlertCircle className="w-5.5 h-5.5 text-amber-400 shrink-0 mt-0.5 sm:mt-0 animate-pulse" />
                 <p className="text-xs sm:text-sm text-amber-200 font-sans font-bold leading-relaxed">
@@ -780,20 +953,35 @@ export default function App() {
               {result.offers && result.offers.length > 0 ? (
                 displayedOffers.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {displayedOffers.map((offer, idx) => {
-                      const isSelected = comparedOffers.some((o) => o.shopName === offer.shopName);
-                      return (
-                        <div key={`${offer.shopName}-${idx}`} className="h-full">
-                          <OfferCard
-                            offer={offer}
-                            onUpdatePrice={handleUpdateOfferPrice}
-                            isSelected={isSelected}
-                            onToggleCompare={() => handleToggleCompare(offer)}
-                            showCompareOption={result.offers.length > 1}
-                          />
-                        </div>
-                      );
-                    })}
+                    <AnimatePresence mode="popLayout">
+                      {displayedOffers.map((offer) => {
+                        const isSelected = comparedOffers.some((o) => o.shopName === offer.shopName);
+                        return (
+                          <motion.div
+                            key={offer.shopName}
+                            layout
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            transition={{ 
+                              opacity: { duration: 0.25 },
+                              scale: { duration: 0.25 },
+                              y: { type: "spring", stiffness: 300, damping: 25 },
+                              layout: { type: "spring", stiffness: 300, damping: 25 }
+                            }}
+                            className="h-full"
+                          >
+                            <OfferCard
+                              offer={offer}
+                              onUpdatePrice={handleUpdateOfferPrice}
+                              isSelected={isSelected}
+                              onToggleCompare={() => handleToggleCompare(offer)}
+                              showCompareOption={result.offers.length > 1}
+                            />
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
                   </div>
                 ) : (
                   <div className="bg-[#131B2E] border border-slate-800 rounded-2xl p-8 text-center max-w-md mx-auto shadow-2xl">

@@ -1,5 +1,8 @@
 import React from "react";
 import { Offer } from "../types";
+import { trackEvent } from "../utils/mixpanel";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { 
   Scale, 
   Trash2, 
@@ -15,7 +18,8 @@ import {
   CreditCard,
   ShoppingBag,
   Wallet,
-  Download
+  Download,
+  FileText
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -156,9 +160,290 @@ export default function ComparisonTable({
     }).format(amount);
   };
 
+  // Handler to download comparison table as a beautifully formatted PDF report
+  const handleDownloadPdf = () => {
+    if (selectedOffers.length === 0) return;
+
+    trackEvent("pdf_downloaded", {
+      product_name: productName,
+      compared_stores_count: selectedOffers.length,
+      stores: selectedOffers.map((o) => o.shopName),
+    });
+
+    try {
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      // Color palette (Brand & Professional tones)
+      const slateDark = [15, 23, 42]; // Slate-900: #0f172a
+      const accentPink = [236, 72, 153]; // Pink-500: #ec4899
+      const indigoBlue = [79, 70, 229]; // Indigo-600: #4f46e5
+      const emeraldGreen = [16, 185, 129]; // Emerald-500: #10b981
+      const textGray = [71, 85, 105]; // Slate-600
+
+      // Modern solid header block
+      doc.setFillColor(15, 23, 42); // slateDark
+      doc.rect(0, 0, 210, 32, "F");
+
+      // Header Branding Texts
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text("RASTREO DE PRECIOS AR", 15, 13);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(156, 163, 175); // Light Gray
+      doc.text("Plataforma Colaborativa de Ahorro y Comparación de Precios en Tiempo Real", 15, 19);
+
+      // Current Timestamp
+      const currentDate = new Date().toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      doc.text(`Fecha y hora de emisión: ${currentDate}`, 15, 24);
+
+      // Thin pink divider line
+      doc.setFillColor(236, 72, 153); // accentPink
+      doc.rect(0, 31, 210, 1.2, "F");
+
+      let currentY = 44;
+
+      // Section Title
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text("REPORTE COMPARATIVO DE OFERTAS Y PROMOCIONES", 15, currentY);
+      currentY += 6;
+
+      // Subtitle with searched product name
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Producto Consultado: ", 15, currentY);
+
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 23, 42);
+      const displayProdName = productName.length > 70 ? productName.substring(0, 67) + "..." : productName;
+      doc.text(`"${displayProdName}"`, 52, currentY);
+      currentY += 12;
+
+      // AI recommendation highlights if available
+      if (aiRecommendation) {
+        doc.setFillColor(253, 242, 248); // Very light pink (fdf2f8)
+        doc.rect(15, currentY, 180, 26, "F");
+
+        doc.setFillColor(236, 72, 153); // Pink-500 Left vertical accent line
+        doc.rect(15, currentY, 1.8, 26, "F");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(236, 72, 153);
+        doc.text("RECOMENDACIÓN ESTRATÉGICA DE COMPRA INTELIGENTE", 21, currentY + 5.5);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(15, 23, 42);
+
+        const recLine1 = `Para maximizar el ahorro en tu compra, te sugerimos adquirir el producto en "${aiRecommendation.shopName}"`;
+        const recLine2 = `pagando a través de "${aiRecommendation.paymentMethod}". Esto reduce el costo original de ${formatArs(aiRecommendation.originalPrice)}`;
+        const recLine3 = `a un precio neto final de ${formatArs(aiRecommendation.finalPrice)} (¡un ahorro neto directo de ${formatArs(aiRecommendation.discount)}! - ${aiRecommendation.badgeDescription}).`;
+
+        doc.text(recLine1, 21, currentY + 11);
+        doc.text(recLine2, 21, currentY + 15.5);
+        doc.text(recLine3, 21, currentY + 20);
+
+        currentY += 34;
+      }
+
+      // Title for main comparison grid
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text("Resumen General de Comercio y Financiación", 15, currentY);
+      currentY += 5;
+
+      const mainTableHeaders = [
+        ["Comercio / Tienda", "Precio Efectivo", "Financiación y Cuotas", "Descuentos Directos", "Mejor Promoción", "Precio Final Mínimo"]
+      ];
+
+      const mainTableRows = selectedOffers.map((offer) => {
+        const promos = calculatePromos(offer.price, offer.shopName);
+        let bestPromoName = "Efectivo / Débito";
+        let bestPromoPrice = offer.price || 0;
+
+        promos.forEach((p) => {
+          if (p.finalPrice < bestPromoPrice) {
+            bestPromoPrice = p.finalPrice;
+            bestPromoName = `${p.name} (-${p.percentage}%)`;
+          }
+        });
+
+        return [
+          offer.shopName,
+          offer.price ? formatArs(offer.price) : "No informado",
+          offer.paymentComparison || "Sin cuotas",
+          offer.discounts || "Sin promociones especiales",
+          bestPromoName,
+          formatArs(bestPromoPrice)
+        ];
+      });
+
+      autoTable(doc, {
+        head: mainTableHeaders,
+        body: mainTableRows,
+        startY: currentY,
+        theme: "striped",
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          fontSize: 8,
+          halign: "left",
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          textColor: [51, 65, 85],
+        },
+        columnStyles: {
+          0: { fontStyle: "bold", cellWidth: 32 }, // Comercio
+          1: { cellWidth: 22 }, // Precio Base
+          2: { cellWidth: 44 }, // Financiacion
+          3: { cellWidth: 38 }, // Descuentos
+          4: { cellWidth: 34 }, // Mejor Promo
+          5: { fontStyle: "bold", textColor: [16, 185, 129], cellWidth: 20 } // Precio Final
+        },
+        margin: { left: 15, right: 15 },
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 12;
+
+      // Page overflow safe guard
+      if (currentY > 215) {
+        doc.addPage();
+        currentY = 25;
+      }
+
+      // Digital Wallet grid
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text("Detalle de Precios Netos con Billeteras Virtuales", 15, currentY);
+      currentY += 5;
+
+      const promoTableHeaders = [
+        ["Comercio", "Precio Base", "Cuenta DNI (30%)", "MODO (20%)", "BNA+ (30%)", "Naranja X (15%)", "Personal Pay (20%)"]
+      ];
+
+      const promoTableRows = selectedOffers.map((offer) => {
+        const price = offer.price || 0;
+        const promos = calculatePromos(price, offer.shopName);
+
+        const getPromoFinalPriceStr = (promoName: string) => {
+          const found = promos.find((p) => p.name.toLowerCase().includes(promoName.toLowerCase()));
+          if (found) {
+            return `${formatArs(found.finalPrice)}\n(Ahorra: ${formatArs(found.discount)})`;
+          }
+          return "No Aplica";
+        };
+
+        return [
+          offer.shopName,
+          formatArs(price),
+          getPromoFinalPriceStr("Cuenta DNI"),
+          getPromoFinalPriceStr("MODO"),
+          getPromoFinalPriceStr("BNA+"),
+          getPromoFinalPriceStr("Naranja X"),
+          getPromoFinalPriceStr("Personal Pay")
+        ];
+      });
+
+      autoTable(doc, {
+        head: promoTableHeaders,
+        body: promoTableRows,
+        startY: currentY,
+        theme: "grid",
+        headStyles: {
+          fillColor: [79, 70, 229], // Indigo Blue header
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          fontSize: 7.5,
+          halign: "center"
+        },
+        bodyStyles: {
+          fontSize: 7,
+          textColor: [51, 65, 85],
+          halign: "center",
+        },
+        columnStyles: {
+          0: { fontStyle: "bold", halign: "left", cellWidth: 30 }, // Comercio
+          1: { fontStyle: "bold", cellWidth: 20 }, // Precio Base
+          2: { cellWidth: 26 }, // Cuenta DNI
+          3: { cellWidth: 26 }, // MODO
+          4: { cellWidth: 26 }, // BNA+
+          5: { cellWidth: 26 }, // Naranja X
+          6: { cellWidth: 26 }  // Personal Pay
+        },
+        margin: { left: 15, right: 15 },
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 12;
+
+      if (currentY > 240) {
+        doc.addPage();
+        currentY = 25;
+      }
+
+      // Explanatory Info Card
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.rect(15, currentY, 180, 24, "F");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(51, 65, 85);
+      doc.text("TÉRMINOS Y NOTAS ACLARATORIAS SOBRE LAS PROMOCIONES:", 19, currentY + 5.5);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("• Los límites (topes) de reintegro son mensuales o semanales de acuerdo a la regulación del banco emisor.", 19, currentY + 10);
+      doc.text("• Cuenta DNI aplica principalmente en supermercados los días de promoción. BNA+ aplica los miércoles.", 19, currentY + 14);
+      doc.text("• Se aconseja ratificar la vigencia de las alianzas en la sucursal de destino antes de concretar el pago.", 19, currentY + 18);
+
+      // Add watermark / footer numbering across all pages
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(7.5);
+        doc.setTextColor(148, 163, 184); // slate-400
+
+        doc.text("Rastreo de Precios AR — Tu aliado inteligente contra la inflación en Argentina.", 15, 287);
+        doc.text(`Página ${i} de ${totalPages}`, 182, 287);
+      }
+
+      const filename = `comparativa_precios_${productName.toLowerCase().replace(/[^a-z0-9]/gi, "_")}.pdf`;
+      doc.save(filename);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+    }
+  };
+
   // Handler to download comparison table as CSV
   const handleDownloadCsv = () => {
     if (selectedOffers.length === 0) return;
+
+    trackEvent("csv_downloaded", {
+      product_name: productName,
+      compared_stores_count: selectedOffers.length,
+      stores: selectedOffers.map(o => o.shopName)
+    });
 
     // CSV Headers
     const headers = [
@@ -347,6 +632,15 @@ export default function ComparisonTable({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={handleDownloadPdf}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500/20 to-purple-600/20 hover:from-pink-500/30 hover:to-purple-600/30 text-pink-300 hover:text-white border border-pink-500/35 hover:border-pink-500/50 text-xs font-display font-black uppercase tracking-wider transition-all cursor-pointer shadow-md hover:shadow-lg hover:shadow-pink-500/10 active:scale-98"
+            title="Descargar reporte comparativo completo en formato PDF"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Descargar PDF</span>
+          </button>
+
           <button
             onClick={handleDownloadCsv}
             className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 text-emerald-300 hover:text-white border border-emerald-500/30 hover:border-emerald-500/50 text-xs font-display font-black uppercase tracking-wider transition-all cursor-pointer shadow-md hover:shadow-lg hover:shadow-emerald-500/10 active:scale-98"
