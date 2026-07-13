@@ -11,6 +11,7 @@ import ComparisonTable from "./components/ComparisonTable";
 import EmailNotificationSettings from "./components/EmailNotificationSettings";
 import IpcCalculator from "./components/IpcCalculator";
 import PotentialSavings from "./components/PotentialSavings";
+import BankFilter, { checkOfferMatchesBank, BANK_OPTIONS } from "./components/BankFilter";
 import { SearchResult, HistoryItem, PriceAlert, Offer } from "./types";
 import { generateClientFallback } from "./utils/fallback";
 import { Sparkles, HelpCircle, AlertCircle, ShoppingCart, Bell, TrendingDown, X, WifiOff } from "lucide-react";
@@ -37,6 +38,7 @@ export default function App() {
   const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
   const [isMixpanelOpen, setIsMixpanelOpen] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<"complete" | "stores-only">("complete");
+  const [selectedBankId, setSelectedBankId] = useState<string>("");
 
   // Initialize Mixpanel and track session launch
   useEffect(() => {
@@ -614,6 +616,10 @@ export default function App() {
     ? (extremeSavingsMode ? result.offers.filter(isExtremeSavingsEligible) : result.offers)
     : [];
 
+  const bankMatchesCount = displayedOffers.filter(offer => 
+    selectedBankId ? checkOfferMatchesBank(offer, selectedBankId) : false
+  ).length;
+
   return (
     <div className="min-h-screen bg-[#070913] relative overflow-hidden flex flex-col font-sans selection:bg-pink-500 selection:text-white text-slate-100">
       
@@ -917,6 +923,17 @@ export default function App() {
               </div>
             )}
 
+            {/* Bank Filter Selector */}
+            {result.offers && result.offers.length > 0 && (
+              <section className="w-full">
+                <BankFilter
+                  selectedBankId={selectedBankId}
+                  onSelectBank={setSelectedBankId}
+                  matchesCount={bankMatchesCount}
+                />
+              </section>
+            )}
+
             {/* AI Deep Analysis Verdict & Citations */}
             <section className="w-full">
               <AnalysisSummary
@@ -1024,6 +1041,9 @@ export default function App() {
                     <AnimatePresence mode="popLayout">
                       {displayedOffers.map((offer) => {
                         const isSelected = comparedOffers.some((o) => o.shopName === offer.shopName);
+                        const isHighlighted = selectedBankId ? checkOfferMatchesBank(offer, selectedBankId) : false;
+                        const activeBank = isHighlighted ? BANK_OPTIONS.find(b => b.id === selectedBankId) : null;
+                        const highlightLabel = activeBank ? `${activeBank.emoji} REINTEGRO ${activeBank.name.toUpperCase().replace("BANCO ", "").replace(" / CUENTA DNI", "")}` : undefined;
                         return (
                           <motion.div
                             key={offer.shopName}
@@ -1045,6 +1065,8 @@ export default function App() {
                               isSelected={isSelected}
                               onToggleCompare={() => handleToggleCompare(offer)}
                               showCompareOption={result.offers.length > 1}
+                              isHighlighted={isHighlighted}
+                              highlightLabel={highlightLabel}
                             />
                           </motion.div>
                         );

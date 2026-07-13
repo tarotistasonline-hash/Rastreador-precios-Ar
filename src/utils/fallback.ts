@@ -129,42 +129,42 @@ export function generateClientFallback(query: string): SearchResult {
       {
         shopName: "Carrefour",
         priceMultiplier: 1.0, // Best deal base
-        discounts: "15% de descuento los martes y miércoles con Tarjeta Carrefour (Crédito o Prepaga), o 10% con Mi Carrefour. Los lunes obtenés 10% de reintegro pagando con dinero en cuenta de Mercado Pago.",
+        discounts: "15% de descuento los martes y miércoles con Tarjeta Carrefour (Crédito o Prepaga), o 10% con Mi Carrefour. Los lunes obtenés 10% de reintegro pagando con dinero en cuenta de Mercado Pago. Los jueves tenés un 15% de ahorro adicional con Banco Galicia.",
         isBestDeal: true,
         urlTemplate: (q: string) => `https://www.carrefour.com.ar/catalogsearch/result/?q=${encodeURIComponent(q)}`
       },
       {
         shopName: "Coto Digital",
         priceMultiplier: 1.04,
-        discounts: "10% de descuento de lunes a jueves con Comunidad Coto. Los viernes obtenés 20% de reintegro con tarjeta de débito Naranja X, o 3 cuotas sin interés (Plan Zeta) con tarjeta de crédito Naranja X.",
+        discounts: "10% de descuento de lunes a jueves con Comunidad Coto. Los viernes obtenés 20% de reintegro con tarjeta de débito Naranja X, o 3 cuotas sin interés (Plan Zeta) con tarjeta de crédito Naranja X. Los miércoles tenés 20% de descuento con Banco Santander.",
         isBestDeal: false,
         urlTemplate: (q: string) => `https://www.cotodigital3.com.ar/sitios/cdigi/browse?_dyncharset=utf-8&search=+${encodeURIComponent(q)}`
       },
       {
         shopName: "Farmacity",
         priceMultiplier: 1.02,
-        discounts: "20% de descuento los lunes para socios de Club Farmacity en medicamentos seleccionados. Los jueves obtenés hasta 2x1 o 50% en la segunda unidad en marcas de cosmética y cuidado personal. 10% con Mercado Pago.",
+        discounts: "20% de descuento los lunes para socios de Club Farmacity en medicamentos seleccionados. Los jueves obtenés hasta 2x1 o 50% en la segunda unidad en marcas de cosmética y cuidado personal. 10% con Mercado Pago y 20% de reintegro los viernes con Banco Macro.",
         isBestDeal: false,
         urlTemplate: (q: string) => `https://www.farmacity.com.ar/busqueda?ft=${encodeURIComponent(q)}`
       },
       {
         shopName: "ChangoMas",
         priceMultiplier: 0.98,
-        discounts: "Beneficios de Club ChangoMas. 15% de descuento los martes con Tarjeta Naranja X. Promociones semanales imperdibles en productos de almacén y perfumería.",
+        discounts: "Beneficios de Club ChangoMas. 15% de descuento los martes con Tarjeta Naranja X. Promociones semanales imperdibles. Los lunes tenés un 20% de reintegro con Banco Nación (BNA) con MODO.",
         isBestDeal: false,
         urlTemplate: (q: string) => `https://www.masonline.com.ar/busqueda?ft=${encodeURIComponent(q)}`
       },
       {
         shopName: "Supermercados Día",
         priceMultiplier: 0.95,
-        discounts: "Precios exclusivos Club Día. Los miércoles tenés 15% de descuento pagando con Tarjeta Prepaga Día, y 10% de reintegro pagando con dinero en cuenta de Mercado Pago.",
+        discounts: "Precios exclusivos Club Día. Los miércoles tenés 15% de descuento pagando con Tarjeta Prepaga Día, y 10% de reintegro pagando con dinero en cuenta de Mercado Pago o con Cuenta DNI de Banco Provincia.",
         isBestDeal: false,
         urlTemplate: (q: string) => `https://diaonline.supermercadosdia.com.ar/busqueda?ft=${encodeURIComponent(q)}`
       },
       {
         shopName: "Jumbo",
         priceMultiplier: 1.10,
-        discounts: "20% de descuento los miércoles con Tarjeta Cencosud (Crédito/Prepaga). 10% de descuento lunes y jueves abonando con tarjeta Naranja X.",
+        discounts: "20% de descuento los miércoles con Tarjeta Cencosud (Crédito/Prepaga). 10% de descuento lunes y jueves abonando con tarjeta Naranja X o 15% de descuento con Banco Galicia y Banco Macro.",
         isBestDeal: false,
         urlTemplate: (q: string) => `https://www.jumbo.com.ar/busqueda?ft=${encodeURIComponent(q)}`
       }
@@ -186,16 +186,23 @@ export function generateClientFallback(query: string): SearchResult {
         urlTemplate: (q: string) => `https://www.provinciacompras.com.ar/${encodeURIComponent(q)}`
       },
       {
+        shopName: "Tienda BNA",
+        priceMultiplier: 1.05,
+        discounts: "¡Hasta 12 cuotas sin interés exclusivas para clientes de Banco Nación (BNA) pagando con MODO o Tarjetas de Crédito de la entidad!",
+        isBestDeal: false,
+        urlTemplate: (q: string) => `https://www.tiendabna.com.ar/catalogsearch/result/?q=${encodeURIComponent(q)}`
+      },
+      {
         shopName: "Easy",
         priceMultiplier: 1.06,
-        discounts: "15% de descuento los lunes y martes con tarjeta Cencosud. Envío gratis y 3 cuotas sin interés con tarjeta prepaga/crédito Mercado Pago, o Plan Zeta (3 cuotas cero interés) de Naranja X.",
+        discounts: "15% de descuento los lunes y martes con tarjeta Cencosud. Envío gratis y 3 cuotas sin interés con tarjeta prepaga/crédito Mercado Pago, o Plan Zeta (3 cuotas cero interés) de Naranja X. Descuentos con Banco Galicia y Banco Macro los jueves.",
         isBestDeal: false,
         urlTemplate: (q: string) => `https://www.easy.com.ar/search?w=${encodeURIComponent(q)}`
       },
       {
         shopName: "Carrefour Electro",
         priceMultiplier: 1.08,
-        discounts: "Hasta 6 cuotas sin interés con Tarjeta Carrefour de Crédito en tecnología, o 10% de ahorro directo abonando en un pago con Mercado Pago.",
+        discounts: "Hasta 6 cuotas sin interés con Tarjeta Carrefour de Crédito en tecnología, o 10% de ahorro directo abonando en un pago con Mercado Pago. Reintegros especiales los miércoles con Banco Santander.",
         isBestDeal: false,
         urlTemplate: (q: string) => `https://www.carrefour.com.ar/catalogsearch/result/?q=${encodeURIComponent(q)}`
       }

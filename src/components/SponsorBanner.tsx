@@ -43,6 +43,20 @@ export default function SponsorBanner() {
 
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [emailCopied, setEmailCopied] = useState(false);
+
+  const handleCopyEmail = (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      navigator.clipboard.writeText("azulbaires@gmail.com");
+      setEmailCopied(true);
+      trackEvent("sponsor_email_copied");
+      setTimeout(() => setEmailCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy email", err);
+    }
+    window.location.href = "mailto:azulbaires@gmail.com?subject=Consulta de Patrocinio - Rastreo de Precios AR";
+  };
 
   // Form states for the customization
   const [formType, setFormType] = useState<"default" | "mercadolibre" | "custom">("default");
@@ -266,9 +280,33 @@ export default function SponsorBanner() {
                 </span>
                 
                 {adConfig.type === "default" && (
-                  <span className="text-[10px] font-medium text-slate-500 font-sans">
-                    Contacto: <strong className="text-purple-400 hover:underline">azulbaires@gmail.com</strong>
-                  </span>
+                  <div className="flex items-center gap-1.5 relative group/mailtool">
+                    <span className="text-[10px] font-bold text-slate-500 font-sans uppercase tracking-wider">Contacto:</span>
+                    <button
+                      onClick={handleCopyEmail}
+                      className="w-7 h-7 rounded-lg bg-[#0e1227] hover:bg-purple-950 border border-slate-800 hover:border-purple-500/50 flex items-center justify-center transition-all duration-300 shadow-md text-sm hover:scale-110 active:scale-95 cursor-pointer relative group"
+                      title="Haz clic para enviar mail o copiar dirección"
+                    >
+                      <span className="group-hover:animate-bounce">📮</span>
+                    </button>
+
+                    {/* Smooth Tooltip/Reveal Hover Card */}
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover/mailtool:flex flex-col items-center z-50 pointer-events-none transition-all">
+                      <div className="bg-[#0b0f19]/95 backdrop-blur-md border border-purple-500/40 text-slate-200 text-[10px] px-3 py-2 rounded-xl shadow-2xl flex flex-col items-center gap-1 font-sans">
+                        <span className="font-bold text-purple-400 uppercase tracking-wider text-[9px]">📧 Contacto por Publicidad</span>
+                        <span className="font-mono text-slate-300">azulbaires [at] gmail.com</span>
+                        <span className="text-[9px] text-slate-500 font-medium mt-0.5">Click para abrir mail y copiar</span>
+                      </div>
+                      <div className="w-2 h-2 bg-[#0b0f19] border-r border-b border-purple-500/40 rotate-45 -mt-1" />
+                    </div>
+
+                    {/* Success notification overlay on copied */}
+                    {emailCopied && (
+                      <span className="absolute left-full ml-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[9px] font-bold px-2 py-0.5 rounded-lg whitespace-nowrap animate-pulse">
+                        ¡Copiado! 📬
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               

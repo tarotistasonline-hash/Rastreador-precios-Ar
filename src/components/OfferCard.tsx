@@ -10,6 +10,8 @@ interface OfferCardProps {
   isSelected?: boolean;
   onToggleCompare?: () => void;
   showCompareOption?: boolean;
+  isHighlighted?: boolean;
+  highlightLabel?: string;
 }
 
 export default function OfferCard({ 
@@ -18,6 +20,8 @@ export default function OfferCard({
   isSelected = false,
   onToggleCompare,
   showCompareOption = true,
+  isHighlighted = false,
+  highlightLabel,
 }: OfferCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
@@ -156,9 +160,11 @@ export default function OfferCard({
       transition={{ duration: 0.25 }}
       id={`offer-${offer.shopName.replace(/\s+/g, '-').toLowerCase()}`}
       className={`relative h-full flex flex-col rounded-3xl border-2 ${
-        offer.isBestDeal
-          ? "border-pink-500 ring-2 ring-pink-500/25 shadow-2xl shadow-pink-500/20"
-          : `${style.border} ${style.glow}`
+        isHighlighted
+          ? "border-emerald-400 ring-4 ring-emerald-400/25 shadow-[0_0_35px_rgba(16,185,129,0.35)]"
+          : offer.isBestDeal
+            ? "border-pink-500 ring-2 ring-pink-500/25 shadow-2xl shadow-pink-500/20"
+            : `${style.border} ${style.glow}`
       } ${style.bg} p-6 transition-all duration-300`}
     >
       {/* Best Deal Banner */}
@@ -166,6 +172,13 @@ export default function OfferCard({
         <div className="absolute -top-3.5 left-4 bg-gradient-to-r from-pink-500 via-purple-600 to-cyan-500 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-lg shadow-pink-500/30 flex items-center gap-1.5 border border-pink-400 animate-bounce">
           <Award className="w-3.5 h-3.5 fill-white/25" />
           <span>★ RECOMENDADO IA</span>
+        </div>
+      )}
+
+      {/* Bank Highlight Banner */}
+      {isHighlighted && (
+        <div className="absolute -top-3.5 right-4 bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 text-[10px] font-sans font-black px-3.5 py-1.5 rounded-full shadow-lg border border-emerald-300/50 flex items-center gap-1 z-10 animate-pulse">
+          <span>{highlightLabel || "✨ REINTEGRO DISPONIBLE"}</span>
         </div>
       )}
 
