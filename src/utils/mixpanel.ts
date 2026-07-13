@@ -49,6 +49,30 @@ export const trackEvent = (eventName: string, properties?: Record<string, any>) 
     screen_resolution: `${window.screen.width}x${window.screen.height}`,
   };
 
+  // Log to local storage for the in-app telemetry dashboard
+  try {
+    const saved = localStorage.getItem("mixpanel_local_events");
+    const events = saved ? JSON.parse(saved) : [];
+    
+    // Insert new event at the beginning of the list
+    events.unshift({
+      id: Math.random().toString(36).substring(2, 9),
+      event: eventName,
+      timestamp: enrichedProperties.timestamp,
+      properties: enrichedProperties
+    });
+    
+    // Limit to last 100 events
+    localStorage.setItem("mixpanel_local_events", JSON.stringify(events.slice(0, 100)));
+    
+    // Dispatch a custom window event for reactive real-time dashboard UI updates
+    window.dispatchEvent(new CustomEvent("mixpanel_event_tracked", { 
+      detail: { eventName, properties: enrichedProperties } 
+    }));
+  } catch (err) {
+    console.warn("⚠️ Failed to write local mixpanel telemetry event log:", err);
+  }
+
   if (MIXPANEL_TOKEN && MIXPANEL_TOKEN.trim() !== "") {
     try {
       mixpanel.track(eventName, enrichedProperties);
@@ -59,7 +83,7 @@ export const trackEvent = (eventName: string, properties?: Record<string, any>) 
     // Print styled telemetry in console for developers to easily verify their tracking tags
     console.log(
       `%c📊 [Mixpanel Simulation] Event: "${eventName}"`,
-      "background: #4F46E5; color: white; font-weight: bold; padding: 2px 6px; rounded: 4px;",
+      "background: #4F46E5; color: white; font-weight: bold; padding: 2px 6px; border-radius: 4px;",
       enrichedProperties
     );
   }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Users, Sparkles, MessageSquare, ChevronDown, ChevronUp, Send, Heart, Flame, ShieldAlert, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { trackEvent } from "../utils/mixpanel";
 
 interface Comment {
   id: string;
@@ -118,11 +119,20 @@ export default function CommunityHub() {
     saveComments(updated);
     setNewAuthor("");
     setNewCommentText("");
+
+    trackEvent("community_comment_added", {
+      author: authorName,
+      store_tag: selectedStore,
+      promo_tag: selectedPromo,
+      text_length: newCommentText.trim().length
+    });
   };
 
   const handleLike = (id: string) => {
     if (likedIds.has(id)) return; // Only allow one like per session
     
+    const likedComment = comments.find(c => c.id === id);
+
     const updated = comments.map((c) => {
       if (c.id === id) {
         return { ...c, likes: c.likes + 1 };
@@ -134,6 +144,13 @@ export default function CommunityHub() {
     const newLiked = new Set(likedIds);
     newLiked.add(id);
     setLikedIds(newLiked);
+
+    trackEvent("community_comment_liked", {
+      comment_id: id,
+      author: likedComment ? likedComment.author : "unknown",
+      store_tag: likedComment?.storeTag || "none",
+      promo_tag: likedComment?.promoTag || "none"
+    });
   };
 
   return (
@@ -237,6 +254,11 @@ export default function CommunityHub() {
               target="_blank"
               rel="noopener noreferrer"
               referrerPolicy="no-referrer"
+              onClick={() => {
+                trackEvent("cafecito_clicked", {
+                  url: "https://mpago.la/2m7bcUT"
+                });
+              }}
               className="bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-slate-950 font-display font-black text-[11px] px-3.5 py-2.5 rounded-xl shadow-md shadow-amber-950/50 hover:shadow-lg hover:scale-105 hover:from-amber-400 hover:to-amber-500 transition-all block text-center uppercase tracking-wider cursor-pointer"
             >
               Invitar Café ☕
@@ -250,7 +272,13 @@ export default function CommunityHub() {
         
         {/* Toggle Header */}
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            const nextOpen = !isOpen;
+            setIsOpen(nextOpen);
+            trackEvent("community_hub_toggled", {
+              open: nextOpen
+            });
+          }}
           className="w-full flex items-center justify-between p-6 hover:bg-slate-900/40 transition-colors text-left outline-hidden cursor-pointer group"
         >
           <div className="flex items-center gap-3.5">

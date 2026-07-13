@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ExternalLink, Percent, HelpCircle, Store, Award, Pencil, Check, X } from "lucide-react";
 import { Offer } from "../types";
 import { motion } from "motion/react";
+import { trackEvent } from "../utils/mixpanel";
 
 interface OfferCardProps {
   offer: Offer;
@@ -303,6 +304,13 @@ export default function OfferCard({
             target="_blank"
             rel="noopener noreferrer"
             referrerPolicy="no-referrer"
+            onClick={() => {
+              trackEvent("offer_purchase_clicked", {
+                shop_name: offer.shopName,
+                price: offer.price,
+                is_best_deal: !!offer.isBestDeal
+              });
+            }}
             className={`w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-display font-black text-sm transition-all shadow-md cursor-pointer ${
               offer.isBestDeal
                 ? "bg-gradient-to-r from-pink-500 via-purple-600 to-cyan-500 hover:from-pink-400 hover:to-cyan-400 text-white shadow-pink-500/10 hover:shadow-xl hover:scale-[1.02]"

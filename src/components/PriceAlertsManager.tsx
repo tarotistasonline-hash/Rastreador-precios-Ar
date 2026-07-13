@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Bell, Trash2, RefreshCw, TrendingDown, Clock, Check, X, AlertTriangle, Sparkles, BellOff, ArrowDown } from "lucide-react";
 import { PriceAlert } from "../types";
 import { motion, AnimatePresence } from "motion/react";
+import { trackEvent } from "../utils/mixpanel";
 
 interface PriceAlertsManagerProps {
   alerts: PriceAlert[];
@@ -83,7 +84,10 @@ export default function PriceAlertsManager({
           {/* Tabs */}
           <div className="flex flex-wrap items-center gap-2 mb-4 bg-slate-950/40 p-1 rounded-xl border border-indigo-950/80">
             <button
-              onClick={() => setActiveTab("all")}
+              onClick={() => {
+                setActiveTab("all");
+                trackEvent("price_alerts_tab_changed", { tab: "all" });
+              }}
               className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-display font-black tracking-wider uppercase transition-all cursor-pointer ${
                 activeTab === "all"
                   ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md shadow-pink-500/10"
@@ -93,7 +97,10 @@ export default function PriceAlertsManager({
               Todas ({alerts.length})
             </button>
             <button
-              onClick={() => setActiveTab("active")}
+              onClick={() => {
+                setActiveTab("active");
+                trackEvent("price_alerts_tab_changed", { tab: "active" });
+              }}
               className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-display font-black tracking-wider uppercase transition-all cursor-pointer ${
                 activeTab === "active"
                   ? "bg-indigo-600 text-white shadow-md"
@@ -103,7 +110,10 @@ export default function PriceAlertsManager({
               Activas ({activeCount})
             </button>
             <button
-              onClick={() => setActiveTab("triggered")}
+              onClick={() => {
+                setActiveTab("triggered");
+                trackEvent("price_alerts_tab_changed", { tab: "triggered" });
+              }}
               className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-display font-black tracking-wider uppercase transition-all cursor-pointer ${
                 activeTab === "triggered"
                   ? "bg-emerald-600 text-white shadow-md"

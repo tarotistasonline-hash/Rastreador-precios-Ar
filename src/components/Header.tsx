@@ -28,20 +28,15 @@ export default function Header({ extremeSavingsMode, onToggleExtremeSavings }: H
         </div>
         
         <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-          {/* Extreme Savings Mode Toggle */}
-          <button
-            onClick={() => onToggleExtremeSavings(!extremeSavingsMode)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-display font-black uppercase tracking-wider transition-all cursor-pointer active:scale-98 border select-none ${
-              extremeSavingsMode
-                ? "bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 text-white border-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.35)] animate-pulse"
-                : "bg-slate-900/80 hover:bg-[#131a30] text-slate-400 hover:text-slate-200 border-indigo-950"
-            }`}
+          {/* Extreme Savings Mode Badge (Always ON) */}
+          <div
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-display font-black uppercase tracking-wider border select-none bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 text-white border-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.35)] animate-pulse"
             id="extreme-savings-toggle-btn"
-            title="Activar para ver solo ofertas con cuotas sin interés o descuentos bancarios activos"
+            title="Ahorro Extremo está siempre activado por defecto para priorizar las mejores promociones"
           >
-            <Zap className={`w-4 h-4 ${extremeSavingsMode ? "text-amber-300 animate-bounce fill-amber-300" : "text-slate-500"}`} />
-            <span>🔥 Ahorro Extremo {extremeSavingsMode ? "ON" : "OFF"}</span>
-          </button>
+            <Zap className="w-4 h-4 text-amber-300 animate-bounce fill-amber-300" />
+            <span>🔥 Ahorro Extremo Siempre ON</span>
+          </div>
 
           <div className="hidden sm:flex items-center gap-2 text-slate-200 bg-gradient-to-r from-slate-900 to-[#1E1B4B] border border-indigo-500/30 px-4 py-2.5 rounded-2xl text-xs font-sans font-bold shadow-lg shadow-indigo-500/5 shrink-0">
             <TrendingUp className="w-4 h-4 text-emerald-400 animate-bounce" />

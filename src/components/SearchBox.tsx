@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Search, Sparkles } from "lucide-react";
+import { trackEvent } from "../utils/mixpanel";
 
 interface SearchBoxProps {
   onSearch: (query: string) => void;
@@ -46,6 +47,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
             href="https://www.cotodigital3.com.ar" 
             target="_blank" 
             rel="noopener noreferrer" 
+            onClick={() => trackEvent("store_link_clicked", { store: "COTO", url: "https://www.cotodigital3.com.ar" })}
             className="px-2.5 py-1 rounded-lg bg-yellow-500/10 text-yellow-400 border border-yellow-500/35 hover:bg-yellow-500/20 hover:border-yellow-500/60 transition-all font-display font-black tracking-wider shadow-[0_0_10px_rgba(234,179,8,0.15)] text-[11px] hover:scale-105 active:scale-95 cursor-pointer"
           >
             COTO
@@ -55,6 +57,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
             href="https://www.carrefour.com.ar" 
             target="_blank" 
             rel="noopener noreferrer" 
+            onClick={() => trackEvent("store_link_clicked", { store: "CARREFOUR", url: "https://www.carrefour.com.ar" })}
             className="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/35 hover:bg-blue-500/20 hover:border-blue-500/60 transition-all font-display font-black tracking-wider shadow-[0_0_10px_rgba(59,130,246,0.15)] text-[11px] hover:scale-105 active:scale-95 cursor-pointer"
           >
             CARREFOUR
@@ -64,6 +67,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
             href="https://diaonline.supermercadosdia.com.ar" 
             target="_blank" 
             rel="noopener noreferrer" 
+            onClick={() => trackEvent("store_link_clicked", { store: "DÍA", url: "https://diaonline.supermercadosdia.com.ar" })}
             className="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/35 hover:bg-red-500/20 hover:border-red-500/60 transition-all font-display font-black tracking-wider shadow-[0_0_10px_rgba(239,68,68,0.15)] text-[11px] hover:scale-105 active:scale-95 cursor-pointer"
           >
             DÍA
@@ -73,6 +77,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
             href="https://www.jumbo.com.ar" 
             target="_blank" 
             rel="noopener noreferrer" 
+            onClick={() => trackEvent("store_link_clicked", { store: "JUMBO", url: "https://www.jumbo.com.ar" })}
             className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/35 hover:bg-emerald-500/20 hover:border-emerald-500/60 transition-all font-display font-black tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.15)] text-[11px] hover:scale-105 active:scale-95 cursor-pointer"
           >
             JUMBO
@@ -82,6 +87,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
             href="https://www.veasupermercados.com.ar" 
             target="_blank" 
             rel="noopener noreferrer" 
+            onClick={() => trackEvent("store_link_clicked", { store: "VEA", url: "https://www.veasupermercados.com.ar" })}
             className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/35 hover:bg-amber-500/20 hover:border-amber-500/60 transition-all font-display font-black tracking-wider shadow-[0_0_10px_rgba(245,158,11,0.15)] text-[11px] hover:scale-105 active:scale-95 cursor-pointer"
           >
             VEA
@@ -91,6 +97,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
             href="https://www.masonline.com.ar" 
             target="_blank" 
             rel="noopener noreferrer" 
+            onClick={() => trackEvent("store_link_clicked", { store: "CHANGOMAS", url: "https://www.masonline.com.ar" })}
             className="px-2.5 py-1 rounded-lg bg-sky-400/10 text-sky-300 border border-sky-400/35 hover:bg-sky-400/20 hover:border-sky-400/60 transition-all font-display font-black tracking-wider shadow-[0_0_10px_rgba(56,189,248,0.15)] text-[11px] hover:scale-105 active:scale-95 cursor-pointer"
           >
             CHANGOMAS
@@ -100,6 +107,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
             href="https://www.farmacity.com.ar" 
             target="_blank"  
             rel="noopener noreferrer" 
+            onClick={() => trackEvent("store_link_clicked", { store: "FARMACITY", url: "https://www.farmacity.com.ar" })}
             className="px-2.5 py-1 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/35 hover:bg-cyan-500/20 hover:border-cyan-500/60 transition-all font-display font-black tracking-wider shadow-[0_0_10px_rgba(6,182,212,0.15)] text-[11px] hover:scale-105 active:scale-95 cursor-pointer"
           >
             FARMACITY
@@ -109,6 +117,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
             href="https://www.easy.com.ar" 
             target="_blank" 
             rel="noopener noreferrer" 
+            onClick={() => trackEvent("store_link_clicked", { store: "EASY", url: "https://www.easy.com.ar" })}
             className="px-2.5 py-1 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/35 hover:bg-orange-500/20 hover:border-orange-500/60 transition-all font-display font-black tracking-wider shadow-[0_0_10px_rgba(249,115,22,0.15)] text-[11px] hover:scale-105 active:scale-95 cursor-pointer"
           >
             EASY
@@ -118,6 +127,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
             href="https://www.pedidosya.com.ar" 
             target="_blank" 
             rel="noopener noreferrer" 
+            onClick={() => trackEvent("store_link_clicked", { store: "PEDIDOSYA", url: "https://www.pedidosya.com.ar" })}
             className="px-2.5 py-1 rounded-lg bg-[#E2001A]/10 text-pink-400 border border-[#E2001A]/35 hover:bg-[#E2001A]/20 hover:border-[#E2001A]/60 transition-all font-display font-black tracking-wider shadow-[0_0_10px_rgba(226,0,26,0.15)] text-[11px] hover:scale-105 active:scale-95 cursor-pointer"
           >
             PEDIDOSYA
@@ -127,6 +137,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
             href="https://www.rappi.com.ar" 
             target="_blank" 
             rel="noopener noreferrer" 
+            onClick={() => trackEvent("store_link_clicked", { store: "RAPPI", url: "https://www.rappi.com.ar" })}
             className="px-2.5 py-1 rounded-lg bg-[#FF441F]/10 text-[#FF441F] border border-[#FF441F]/35 hover:bg-[#FF441F]/20 hover:border-[#FF441F]/60 transition-all font-display font-black tracking-wider shadow-[0_0_10px_rgba(255,68,31,0.15)] text-[11px] hover:scale-105 active:scale-95 cursor-pointer"
           >
             RAPPI
@@ -136,6 +147,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
             href="https://listado.mercadolibre.com.ar/" 
             target="_blank" 
             rel="noopener noreferrer" 
+            onClick={() => trackEvent("store_link_clicked", { store: "MERCADO LIBRE", url: "https://listado.mercadolibre.com.ar/" })}
             className="px-2.5 py-1 rounded-lg bg-pink-500/10 text-pink-300 border border-pink-500/35 hover:bg-pink-500/20 hover:border-pink-500/60 transition-all font-display font-black tracking-wider shadow-[0_0_10px_rgba(236,72,153,0.15)] text-[11px] hover:scale-105 active:scale-95 cursor-pointer"
           >
             MERCADO LIBRE
@@ -169,8 +181,10 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
             </>
           ) : (
             <>
-              <Search className="w-5 h-5 stroke-[3px]" />
-              <span>Rastrear Precios</span>
+              <Search className="w-5 h-5 stroke-[3px] text-yellow-300" />
+              <span className="text-[#030712] bg-[#FFE600] px-4.5 py-2 rounded-xl shadow-[0_2px_15px_rgba(255,230,0,0.6)] tracking-wider font-extrabold text-sm uppercase transform hover:scale-105 active:scale-95 transition-transform duration-200">
+                Rastrear Precios 🚀
+              </span>
             </>
           )}
         </button>
@@ -188,6 +202,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
               type="button"
               onClick={() => {
                 setQuery(suggestion);
+                trackEvent("suggestion_chip_clicked", { query: suggestion });
                 onSearch(suggestion);
               }}
               disabled={isLoading}

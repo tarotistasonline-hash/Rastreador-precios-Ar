@@ -14,6 +14,7 @@ import {
   Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { trackEvent } from "../utils/mixpanel";
 
 interface IpcCalculatorProps {
   currentOffers?: { shopName: string; price: number; formattedPrice: string }[];
@@ -134,6 +135,12 @@ export default function IpcCalculator({ currentOffers = [] }: IpcCalculatorProps
                   type="text"
                   value={customPriceInput}
                   onChange={(e) => handlePriceInputChange(e.target.value)}
+                  onBlur={() => {
+                    trackEvent("ipc_price_entered", {
+                      amount: basePrice,
+                      direction: direction
+                    });
+                  }}
                   placeholder="Ej: 10.000"
                   className="w-full bg-[#05070e] border border-indigo-950 focus:border-indigo-500/60 rounded-xl py-2.5 pl-8 pr-4 font-sans font-black text-sm text-white focus:outline-hidden transition-all shadow-inner"
                 />
@@ -141,7 +148,14 @@ export default function IpcCalculator({ currentOffers = [] }: IpcCalculatorProps
 
               {/* Toggle direction button */}
               <button
-                onClick={() => setDirection(prev => prev === "past_to_present" ? "present_to_past" : "past_to_present")}
+                onClick={() => {
+                  const newDir = direction === "past_to_present" ? "present_to_past" : "past_to_present";
+                  setDirection(newDir);
+                  trackEvent("ipc_direction_toggled", {
+                    direction: newDir,
+                    amount: basePrice
+                  });
+                }}
                 className="px-3 bg-indigo-950/50 hover:bg-indigo-950 border border-indigo-900 rounded-xl text-indigo-300 hover:text-pink-400 transition-all flex items-center gap-1.5 cursor-pointer text-[10px] font-display font-black uppercase tracking-wider"
                 title="Cambiar dirección del cálculo"
               >
@@ -160,7 +174,13 @@ export default function IpcCalculator({ currentOffers = [] }: IpcCalculatorProps
                   {currentOffers.slice(0, 4).map((offer, i) => (
                     <button
                       key={offer.shopName + i}
-                      onClick={() => selectOfferPrice(offer.price)}
+                      onClick={() => {
+                        selectOfferPrice(offer.price);
+                        trackEvent("ipc_quick_fill_clicked", {
+                          shop_name: offer.shopName,
+                          price: offer.price
+                        });
+                      }}
                       className={`text-[9px] font-sans font-black px-2 py-1 rounded-lg border transition-all cursor-pointer ${
                         basePrice === offer.price
                           ? "bg-indigo-500/20 text-white border-indigo-400"
@@ -189,7 +209,17 @@ export default function IpcCalculator({ currentOffers = [] }: IpcCalculatorProps
             <div className="relative">
               <select
                 value={selectedMonthsIndex}
-                onChange={(e) => setSelectedMonthsIndex(Number(e.target.value))}
+                onChange={(e) => {
+                  const idx = Number(e.target.value);
+                  setSelectedMonthsIndex(idx);
+                  const selectedM = ipcHistory[idx];
+                  trackEvent("ipc_period_changed", {
+                    period_index: idx,
+                    month_name: selectedM.name,
+                    rate: selectedM.rate,
+                    source: "dropdown"
+                  });
+                }}
                 className="w-full bg-[#05070e] border border-indigo-950 focus:border-indigo-500/60 rounded-xl py-2.5 pl-4 pr-10 font-sans font-bold text-xs text-white focus:outline-hidden transition-all shadow-inner cursor-pointer appearance-none"
               >
                 {ipcHistory.map((month, idx) => (
@@ -211,6 +241,24 @@ export default function IpcCalculator({ currentOffers = [] }: IpcCalculatorProps
                 max={ipcHistory.length - 1}
                 value={selectedMonthsIndex}
                 onChange={(e) => setSelectedMonthsIndex(Number(e.target.value))}
+                onMouseUp={() => {
+                  const selectedM = ipcHistory[selectedMonthsIndex];
+                  trackEvent("ipc_period_changed", {
+                    period_index: selectedMonthsIndex,
+                    month_name: selectedM.name,
+                    rate: selectedM.rate,
+                    source: "slider"
+                  });
+                }}
+                onTouchEnd={() => {
+                  const selectedM = ipcHistory[selectedMonthsIndex];
+                  trackEvent("ipc_period_changed", {
+                    period_index: selectedMonthsIndex,
+                    month_name: selectedM.name,
+                    rate: selectedM.rate,
+                    source: "slider"
+                  });
+                }}
                 className="w-full h-1.5 bg-indigo-950 rounded-lg appearance-none cursor-pointer accent-pink-500"
               />
               <div className="flex justify-between text-[8px] text-slate-500 font-sans font-bold uppercase mt-1">

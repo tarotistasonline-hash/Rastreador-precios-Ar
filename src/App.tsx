@@ -5,7 +5,6 @@ import OfferCard from "./components/OfferCard";
 import SearchHistory from "./components/SearchHistory";
 import AnalysisSummary from "./components/AnalysisSummary";
 import CommunityHub from "./components/CommunityHub";
-import AdSenseBanner from "./components/AdSenseBanner";
 import CreatePriceAlert from "./components/CreatePriceAlert";
 import PriceAlertsManager from "./components/PriceAlertsManager";
 import ComparisonTable from "./components/ComparisonTable";
@@ -17,6 +16,9 @@ import { generateClientFallback } from "./utils/fallback";
 import { Sparkles, HelpCircle, AlertCircle, ShoppingCart, Bell, TrendingDown, X, WifiOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { initMixpanel, trackEvent } from "./utils/mixpanel";
+import MixpanelDashboard from "./components/MixpanelDashboard";
+import SponsorBanner from "./components/SponsorBanner";
+import StoreAccessGrid from "./components/StoreAccessGrid";
 
 export default function App() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -31,8 +33,10 @@ export default function App() {
   const [comparedOffers, setComparedOffers] = useState<Offer[]>([]);
   const [comparisonWarning, setComparisonWarning] = useState<string | null>(null);
   const [notificationEmail, setNotificationEmail] = useState<string>("");
-  const [extremeSavingsMode, setExtremeSavingsMode] = useState<boolean>(false);
+  const [extremeSavingsMode, setExtremeSavingsMode] = useState<boolean>(true);
   const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
+  const [isMixpanelOpen, setIsMixpanelOpen] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<"complete" | "stores-only">("complete");
 
   // Initialize Mixpanel and track session launch
   useEffect(() => {
@@ -277,6 +281,7 @@ export default function App() {
     try {
       setHistory([]);
       localStorage.removeItem("price_tracker_ar_history");
+      trackEvent("search_history_cleared");
     } catch (err) {
       console.error("Error clearing history:", err);
     }
@@ -450,6 +455,7 @@ export default function App() {
   };
 
   const handleMarkAsRead = (id: string) => {
+    const alertItem = alerts.find((alert) => alert.id === id);
     const updated = alerts.map((alert) => {
       if (alert.id === id) {
         return { ...alert, isRead: true };
@@ -457,6 +463,11 @@ export default function App() {
       return alert;
     });
     saveAlerts(updated);
+
+    trackEvent("price_alert_marked_as_read", {
+      product_name: alertItem ? alertItem.productName : "unknown",
+      target_price: alertItem ? alertItem.targetPrice : 0
+    });
   };
 
   const handleRefreshAlerts = async () => {
@@ -616,50 +627,107 @@ export default function App() {
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 sm:py-12 flex flex-col gap-8 relative z-10">
         
+        {/* Toggle View Mode Control Panel */}
+        <div className="w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#0B0F19]/80 backdrop-blur-md border border-slate-800/50 p-4.5 rounded-2xl shadow-2xl relative overflow-hidden" id="view-mode-selector-container">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-pink-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="text-left">
+            <h3 className="text-sm font-display font-black text-white flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping inline-block" />
+              Gestión de Espacio & Accesos Rápidos
+            </h3>
+            <p className="text-xs text-indigo-200/75 font-sans font-medium">
+              Simplificá tu pantalla desactivando alertas y foros para dejar únicamente los accesos directos a tiendas en un solo lugar.
+            </p>
+          </div>
+          
+          <div className="bg-[#080B14] p-1 border-2 border-indigo-950/70 rounded-2xl flex items-center gap-1 w-full md:w-auto shrink-0 shadow-inner">
+            <button
+              onClick={() => {
+                setViewMode("complete");
+                trackEvent("view_mode_changed", { mode: "complete" });
+              }}
+              className={`flex-1 md:flex-initial px-4 py-2.5 rounded-xl text-xs font-display font-black uppercase tracking-wider transition-all duration-200 cursor-pointer select-none ${
+                viewMode === "complete"
+                  ? "bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
+              }`}
+              id="view-mode-complete-btn"
+            >
+              📊 Vista Completa
+            </button>
+            <button
+              onClick={() => {
+                setViewMode("stores-only");
+                trackEvent("view_mode_changed", { mode: "stores-only" });
+              }}
+              className={`flex-1 md:flex-initial px-4 py-2.5 rounded-xl text-xs font-display font-black uppercase tracking-wider transition-all duration-200 cursor-pointer select-none ${
+                viewMode === "stores-only"
+                  ? "bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40"
+              }`}
+              id="view-mode-stores-only-btn"
+            >
+              ⚡ Solo Accesos a Tiendas
+            </button>
+          </div>
+        </div>
+
         {/* Main interactive search widget */}
         <section className="w-full">
           <SearchBox onSearch={handleSearch} isLoading={isLoading} />
         </section>
 
-        {/* Private search history list */}
-        <section className="w-full">
-          <SearchHistory
-            history={history}
-            onSelect={handleSearch}
-            onClear={handleClearHistory}
-          />
-        </section>
+        {viewMode === "stores-only" && (
+          /* Render the beautiful Stores Access Grid when in compact stores-only mode */
+          <section className="w-full animate-fadeIn">
+            <StoreAccessGrid />
+          </section>
+        )}
 
-        {/* Private Price Alerts & Notifications Suite */}
-        <section className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <PriceAlertsManager
-              alerts={alerts}
-              onDeleteAlert={handleDeleteAlert}
-              onRefreshAlerts={handleRefreshAlerts}
-              isRefreshing={isRefreshingAlerts}
-              onMarkAsRead={handleMarkAsRead}
-            />
-          </div>
-          <div className="lg:col-span-1">
-            <EmailNotificationSettings
-              onSaveEmail={handleSaveEmail}
-              savedEmail={notificationEmail}
-              onClearEmail={handleClearEmail}
-              activeAlertsCount={alerts.filter(a => !a.isTriggered).length}
-            />
-          </div>
-        </section>
+        {viewMode === "complete" && (
+          <>
+            {/* Private search history list */}
+            <section className="w-full">
+              <SearchHistory
+                history={history}
+                onSelect={handleSearch}
+                onClear={handleClearHistory}
+              />
+            </section>
 
-        {/* Live Community & Support Hub */}
-        <section className="w-full">
-          <CommunityHub />
-        </section>
+            {/* Private Price Alerts & Notifications Suite */}
+            <section className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
+                <PriceAlertsManager
+                  alerts={alerts}
+                  onDeleteAlert={handleDeleteAlert}
+                  onRefreshAlerts={handleRefreshAlerts}
+                  isRefreshing={isRefreshingAlerts}
+                  onMarkAsRead={handleMarkAsRead}
+                />
+              </div>
+              <div className="lg:col-span-1">
+                <EmailNotificationSettings
+                  onSaveEmail={handleSaveEmail}
+                  savedEmail={notificationEmail}
+                  onClearEmail={handleClearEmail}
+                  activeAlertsCount={alerts.filter(a => !a.isTriggered).length}
+                />
+              </div>
+            </section>
 
-        {/* Google AdSense Monetization Banner */}
-        <section className="w-full">
-          <AdSenseBanner slot="6281940375" format="auto" responsive="true" />
-        </section>
+            {/* Dynamic Sponsor & Ad Corner */}
+            <section className="w-full">
+              <SponsorBanner />
+            </section>
+
+            {/* Live Community & Support Hub */}
+            <section className="w-full">
+              <CommunityHub />
+            </section>
+          </>
+        )}
+
 
         {/* Error Feedback */}
         {error && (
@@ -1304,6 +1372,27 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Floating Mixpanel Telemetry Toggle Badge */}
+      <motion.button
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setIsMixpanelOpen(true)}
+        className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-500 text-white font-sans font-extrabold text-xs px-4 py-3 rounded-full shadow-2xl flex items-center gap-2 border border-purple-400/30 transition-all cursor-pointer select-none group"
+        id="floating-mixpanel-btn"
+        title="Ver Métricas de Mixpanel en tiempo real"
+      >
+        <div className="relative flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+        </div>
+        <span className="tracking-wide">📊 Métricas Mixpanel</span>
+      </motion.button>
+
+      {/* Real-time Telemetry Dashboard Panel */}
+      <MixpanelDashboard isOpen={isMixpanelOpen} onClose={() => setIsMixpanelOpen(false)} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { TrendingDown, PiggyBank, Sparkles, ShoppingBag, HelpCircle, ArrowRight, Percent, Layers } from "lucide-react";
 import { motion } from "motion/react";
+import { trackEvent } from "../utils/mixpanel";
 
 interface Offer {
   shopName: string;
@@ -123,6 +124,18 @@ export default function PotentialSavings({ offers, productName }: PotentialSavin
               max="20"
               value={purchaseQuantity}
               onChange={(e) => setPurchaseQuantity(Number(e.target.value))}
+              onMouseUp={() => {
+                trackEvent("savings_quantity_changed", {
+                  quantity: purchaseQuantity,
+                  product_name: productName
+                });
+              }}
+              onTouchEnd={() => {
+                trackEvent("savings_quantity_changed", {
+                  quantity: purchaseQuantity,
+                  product_name: productName
+                });
+              }}
               className="w-full h-1.5 bg-indigo-950 rounded-lg appearance-none cursor-pointer accent-emerald-500"
             />
             

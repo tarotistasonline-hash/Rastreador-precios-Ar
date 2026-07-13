@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Mail, Check, AlertCircle, Loader2, Shield, X, Send, Bell, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { trackEvent } from "../utils/mixpanel";
 
 interface EmailNotificationSettingsProps {
   onSaveEmail: (email: string) => void;
@@ -88,11 +89,19 @@ export default function EmailNotificationSettings({
       if (res.ok) {
         setTestSent(true);
         setTimeout(() => setTestSent(false), 3000);
+        trackEvent("test_email_sent", {
+          success: true,
+          active_alerts_count: activeAlertsCount
+        });
       } else {
         throw new Error("No se pudo enviar el correo de prueba.");
       }
     } catch (err: any) {
       setError(err.message);
+      trackEvent("test_email_sent", {
+        success: false,
+        error_message: err.message
+      });
     } finally {
       setIsLoading(false);
     }
