@@ -13,6 +13,42 @@
   .animate-sweep {
     animation: sweep 2.5s ease-in-out infinite alternate;
   }
+  .animate-blink-fast {
+    animation: blink-fast 0.8s ease-in-out infinite;
+  }
+  .animate-neon-flicker {
+    animation: neon-flicker 3.5s linear infinite;
+  }
+}
+
+@keyframes neon-flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    color: #fff;
+    text-shadow: 
+      0 0 4px #fff,
+      0 0 10px #ffe600,
+      0 0 20px #ffe600,
+      0 0 35px #ff007f,
+      0 0 50px #ff007f;
+  }
+  20%, 24%, 55% {
+    color: #ff9d00;
+    text-shadow: 
+      0 0 2px rgba(255, 157, 0, 0.6),
+      0 0 8px rgba(255, 0, 127, 0.4);
+    opacity: 0.85;
+  }
+}
+
+@keyframes blink-fast {
+  0%, 100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(255, 230, 0, 0.8));
+  }
+  50% {
+    opacity: 0.3;
+    filter: drop-shadow(0 0 0px rgba(255, 230, 0, 0));
+  }
 }
 
 @keyframes sweep {

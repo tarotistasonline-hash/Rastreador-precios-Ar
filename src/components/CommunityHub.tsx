@@ -237,14 +237,14 @@ export default function CommunityHub() {
             
             <div className="flex-1 pr-1">
               <span className="block text-[9px] uppercase tracking-widest font-extrabold text-amber-400">
-                Apoyar Servidor AR
+                ¿Te sirvió el sitio?
               </span>
               <h4 className="font-display font-black text-xs text-white leading-tight flex items-center gap-1">
                 Cafecito Humeante
                 <span className="animate-pulse">☕</span>
               </h4>
               <p className="text-[10px] text-slate-300 font-sans mt-0.5 leading-tight">
-                ¡Invitame un café para mantener el comparador en vivo y libre de publicidad!
+                Si te resultó útil el sitio, invítame con un cafecito humeante, que hace mucho frío.
               </p>
             </div>
           </div>
@@ -324,9 +324,36 @@ export default function CommunityHub() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {/* Author input */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-sans font-extrabold uppercase text-slate-400 tracking-wider">
-                        Tu Nombre / Alias
-                      </label>
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-sans font-extrabold uppercase text-slate-400 tracking-wider">
+                          Tu Nombre / Alias
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const aliases = [
+                              "CazadorDePrecios",
+                              "ReyDelDescuento",
+                              "AhorradorCompulsivo",
+                              "GondolaSniper",
+                              "MODO_Enjoyer",
+                              "CuentaDNI_Fan",
+                              "SuperCazador",
+                              "SeñorDeLaGondola",
+                              "MateLover_99",
+                              "DolarBlueGuerrero",
+                              "CompradorInteligente",
+                              "InflacionFighter"
+                            ];
+                            const random = aliases[Math.floor(Math.random() * aliases.length)];
+                            setNewAuthor(random);
+                            trackEvent("incognito_alias_generated", { alias: random });
+                          }}
+                          className="text-[9px] text-pink-400 hover:text-pink-300 font-sans font-black flex items-center gap-1 cursor-pointer hover:underline transition-all active:scale-95 bg-pink-500/10 border border-pink-500/20 px-1.5 py-0.5 rounded-md"
+                        >
+                          🕵️‍♂️ Incógnito
+                        </button>
+                      </div>
                       <input
                         type="text"
                         value={newAuthor}

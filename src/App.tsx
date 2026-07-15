@@ -14,14 +14,135 @@ import PotentialSavings from "./components/PotentialSavings";
 import BankFilter, { checkOfferMatchesBank, BANK_OPTIONS } from "./components/BankFilter";
 import { SearchResult, HistoryItem, PriceAlert, Offer } from "./types";
 import { generateClientFallback } from "./utils/fallback";
-import { Sparkles, HelpCircle, AlertCircle, ShoppingCart, Bell, TrendingDown, X, WifiOff } from "lucide-react";
+import { Sparkles, HelpCircle, AlertCircle, ShoppingCart, Bell, TrendingDown, X, WifiOff, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { initMixpanel, trackEvent } from "./utils/mixpanel";
 import MixpanelDashboard from "./components/MixpanelDashboard";
 import SponsorBanner from "./components/SponsorBanner";
 import StoreAccessGrid from "./components/StoreAccessGrid";
 
+// Objeto de audio global para sintetizar sonidos de interfaz sutiles usando Web Audio API
+export const uiSound = {
+  play: (type: "click" | "alert" | "success" | "toggle" | "delete") => {
+    try {
+      if (typeof window !== "undefined") {
+        const soundsEnabled = window.localStorage.getItem("ui_sounds_enabled") !== "false";
+        if (!soundsEnabled) return;
+      }
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      
+      if (type === "click") {
+        // Sonido de click sutil e instantáneo
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(900, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 0.05);
+        
+        gain.gain.setValueAtTime(0.04, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.05);
+      } else if (type === "alert") {
+        // Chime ascendente retro de tres tonos sutiles
+        const now = ctx.currentTime;
+        [523.25, 659.25, 783.99].forEach((freq, index) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(freq, now + index * 0.07);
+          
+          gain.gain.setValueAtTime(0.0, now);
+          gain.gain.linearRampToValueAtTime(0.06, now + index * 0.07 + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.07 + 0.2);
+          
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + index * 0.07);
+          osc.stop(now + index * 0.07 + 0.2);
+        });
+      } else if (type === "success") {
+        // Dos tonos cortos ascendentes alegres
+        const now = ctx.currentTime;
+        [600, 850].forEach((freq, index) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(freq, now + index * 0.08);
+          
+          gain.gain.setValueAtTime(0.04, now + index * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.08 + 0.12);
+          
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + index * 0.08);
+          osc.stop(now + index * 0.08 + 0.12);
+        });
+      } else if (type === "toggle") {
+        // Sonido de cambio / toggle suave
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(380, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.08);
+        
+        gain.gain.setValueAtTime(0.03, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.08);
+      } else if (type === "delete") {
+        // Tono sutil descendente
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(350, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.15);
+        
+        gain.gain.setValueAtTime(0.05, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      }
+    } catch (err) {
+      console.warn("Audio fallback: AudioContext was blocked or not supported.", err);
+    }
+  }
+};
+
+if (typeof window !== "undefined") {
+  (window as any).uiSound = uiSound;
+}
+
 export default function App() {
+  const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ui_sounds_enabled") !== "false";
+    }
+    return true;
+  });
+
+  const handleToggleSounds = () => {
+    const newValue = !soundsEnabled;
+    setSoundsEnabled(newValue);
+    localStorage.setItem("ui_sounds_enabled", newValue ? "true" : "false");
+    if (newValue) {
+      setTimeout(() => {
+        uiSound.play("success");
+      }, 50);
+    }
+  };
+
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +181,13 @@ export default function App() {
       searched_term: searchedTerm
     });
   }, [extremeSavingsMode]);
+
+  // Play alert notification sound when an alert triggers
+  useEffect(() => {
+    if (triggeredAlertNotification) {
+      uiSound.play("alert");
+    }
+  }, [triggeredAlertNotification]);
 
   // Load email from LocalStorage
   useEffect(() => {
@@ -292,6 +420,7 @@ export default function App() {
   const handleSearch = async (query: string) => {
     if (!query.trim()) return;
 
+    uiSound.play("click"); // Play subtle click sound when search starts
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -319,6 +448,7 @@ export default function App() {
       saveToHistory(query);
       checkAndTriggerAlertsForSearch(data, alerts);
       setIsOfflineMode(false);
+      uiSound.play("success"); // Play success melody on successful data fetch
       trackEvent("search_performed", {
         query,
         is_fallback: false,
@@ -336,6 +466,7 @@ export default function App() {
         checkAndTriggerAlertsForSearch(fallbackData, alerts);
         // Set a mild info notice, but since results are loaded, we don't display it as a blocking error
         console.log("Client-side fallback generated successfully.");
+        uiSound.play("success"); // Play success even for client-side fallback
         trackEvent("search_performed", {
           query,
           is_fallback: true,
@@ -345,6 +476,7 @@ export default function App() {
         });
       } catch (fallbackErr) {
         setError(err.message || "No se pudo conectar con el servicio de rastreo.");
+        uiSound.play("delete"); // Play descending error tone
         trackEvent("search_failed", {
           query,
           error_message: err.message || "No se pudo conectar con el servicio de rastreo."
@@ -422,6 +554,7 @@ export default function App() {
 
     const newAlerts = [newAlert, ...filtered];
     saveAlerts(newAlerts);
+    uiSound.play("success"); // Play sound on alert creation
 
     trackEvent("price_alert_created", {
       product_name: newAlert.productName,
@@ -449,6 +582,7 @@ export default function App() {
     const deletedAlert = alerts.find((alert) => alert.id === id);
     const updated = alerts.filter((alert) => alert.id !== id);
     saveAlerts(updated);
+    uiSound.play("delete"); // Play sound on alert deletion
 
     trackEvent("price_alert_deleted", {
       product_name: deletedAlert ? deletedAlert.productName : "unknown",
@@ -543,13 +677,16 @@ export default function App() {
 
     if (exists) {
       setComparedOffers(comparedOffers.filter((o) => o.shopName !== offer.shopName));
+      uiSound.play("toggle");
     } else {
       if (comparedOffers.length >= 3) {
         setComparisonWarning("¡Solo podés comparar hasta 3 productos al mismo tiempo!");
+        uiSound.play("delete"); // Warning / error sound
         setTimeout(() => setComparisonWarning(null), 5000);
         return;
       }
       setComparedOffers([...comparedOffers, offer]);
+      uiSound.play("toggle");
     }
   };
 
@@ -565,6 +702,7 @@ export default function App() {
 
     setComparedOffers(comparedOffers.filter((o) => o.shopName !== shopName));
     setComparisonWarning(null);
+    uiSound.play("delete"); // Play sound on item removal
   };
 
   const handleClearComparison = () => {
@@ -574,6 +712,7 @@ export default function App() {
 
     setComparedOffers([]);
     setComparisonWarning(null);
+    uiSound.play("delete"); // Play sound on clearing the whole list
   };
 
   const isExtremeSavingsEligible = (offer: Offer) => {
@@ -1145,7 +1284,7 @@ export default function App() {
               </div>
             </div>
             <h3 className="font-display font-black text-2xl sm:text-3xl text-white tracking-tight">
-              Listo para Rastrear Argentina 🇦🇷
+              Listo para <span className="animate-neon-flicker text-[#FFE600] inline-block">Rastrear</span> Argentina 🇦🇷
             </h3>
             <p className="text-indigo-200/80 text-sm mt-2.5 font-sans font-medium leading-relaxed px-4">
               Buscá cualquier producto para comparar precios en tiempo real, calcular cuotas frente a la inflación y descubrir beneficios de bancos o billeteras digitales en un instante.
@@ -1162,21 +1301,46 @@ export default function App() {
           {/* Top segment of footer: Visitor Counter and Steaming Coffee */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-b border-slate-900 pb-6">
             
-            {/* Blinking Live Visitor Counter */}
-            <div className="flex items-center gap-3 bg-[#070a12] px-4 py-2.5 rounded-2xl border border-indigo-500/20 shadow-inner group">
-              <div className="relative flex h-3.5 w-3.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 shadow-[0_0_10px_#10b981]"></span>
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
+              {/* Blinking Live Visitor Counter */}
+              <div className="flex items-center gap-3 bg-[#070a12] px-4 py-2.5 rounded-2xl border border-indigo-500/20 shadow-inner group">
+                <div className="relative flex h-3.5 w-3.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 shadow-[0_0_10px_#10b981]"></span>
+                </div>
+                <div className="text-left">
+                  <span className="block text-[8px] text-slate-400 uppercase tracking-widest font-black leading-none mb-1">
+                    🟢 VISITAS EN TIEMPO REAL
+                  </span>
+                  <span className="font-mono text-base font-black text-emerald-400 leading-none tracking-wider flex items-center gap-1.5 animate-pulse">
+                    {visitorCount.toLocaleString("es-AR")}
+                    <span className="text-[10px] text-emerald-500/80 font-bold uppercase tracking-wider">Hoy</span>
+                  </span>
+                </div>
               </div>
-              <div className="text-left">
-                <span className="block text-[8px] text-slate-400 uppercase tracking-widest font-black leading-none mb-1">
-                  🟢 VISITAS EN TIEMPO REAL
-                </span>
-                <span className="font-mono text-base font-black text-emerald-400 leading-none tracking-wider flex items-center gap-1.5 animate-pulse">
-                  {visitorCount.toLocaleString("es-AR")}
-                  <span className="text-[10px] text-emerald-500/80 font-bold uppercase tracking-wider">Hoy</span>
-                </span>
-              </div>
+
+              {/* Sound Effects Toggle Control */}
+              <button
+                onClick={handleToggleSounds}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all duration-200 uppercase font-display font-black text-[10px] tracking-wider cursor-pointer ${
+                  soundsEnabled
+                    ? "bg-indigo-500/10 text-indigo-300 border-indigo-500/35 hover:bg-indigo-500/20"
+                    : "bg-slate-950/60 text-slate-500 border-slate-900 hover:bg-slate-950/90"
+                }`}
+                title={soundsEnabled ? "Silenciar efectos de sonido" : "Activar efectos de sonido"}
+              >
+                {soundsEnabled ? (
+                  <>
+                    <Volume2 className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                    <span>Sonidos: ON</span>
+                  </>
+                ) : (
+                  <>
+                    <VolumeX className="w-3.5 h-3.5 text-rose-500" />
+                    <span>Sonidos: OFF</span>
+                  </>
+                )}
+              </button>
             </div>
 
             <p className="text-slate-500 text-center sm:text-left text-xs max-w-sm sm:max-w-none leading-relaxed">
@@ -1199,8 +1363,8 @@ export default function App() {
               </div>
               <span className="text-lg filter drop-shadow-[0_0_2px_rgba(0,0,0,0.5)]">☕</span>
               <span className="flex flex-col text-left leading-none">
-                <span className="text-[8px] uppercase tracking-widest font-black text-slate-900 leading-none">Apoyá al Servidor</span>
-                <span className="text-[11px] font-black leading-tight mt-0.5">Cafecito Humeante</span>
+                <span className="text-[8px] uppercase tracking-widest font-black text-slate-900 leading-none">¿Te resultó útil?</span>
+                <span className="text-[11px] font-black leading-tight mt-0.5">Invitame un Cafecito ☕</span>
               </span>
             </a>
 

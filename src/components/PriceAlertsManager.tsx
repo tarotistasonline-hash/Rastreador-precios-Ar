@@ -1,8 +1,14 @@
 import { useState, useEffect } from "react";
-import { Bell, Trash2, RefreshCw, TrendingDown, Clock, Check, X, AlertTriangle, Sparkles, BellOff, ArrowDown } from "lucide-react";
+import { Bell, Trash2, RefreshCw, TrendingDown, Clock, Check, X, AlertTriangle, Sparkles, BellOff, ArrowDown, HelpCircle } from "lucide-react";
 import { PriceAlert } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { trackEvent } from "../utils/mixpanel";
+import {
+  isNotificationSupported,
+  getNotificationPermissionStatus,
+  requestNotificationPermission,
+  sendTestNotification,
+} from "../utils/notifications";
 
 interface PriceAlertsManagerProps {
   alerts: PriceAlert[];
@@ -20,6 +26,19 @@ export default function PriceAlertsManager({
   onMarkAsRead,
 }: PriceAlertsManagerProps) {
   const [activeTab, setActiveTab] = useState<"all" | "active" | "triggered">("all");
+  const [notificationStatus, setNotificationStatus] = useState<NotificationPermission | "unsupported">("unsupported");
+
+  useEffect(() => {
+    setNotificationStatus(getNotificationPermissionStatus());
+  }, []);
+
+  const handleEnableNotifications = async () => {
+    const status = await requestNotificationPermission();
+    setNotificationStatus(status);
+    if (status === "granted") {
+      sendTestNotification();
+    }
+  };
 
   const filteredAlerts = alerts.filter((alert) => {
     if (activeTab === "active") return !alert.isTriggered;
@@ -68,6 +87,64 @@ export default function PriceAlertsManager({
           </button>
         )}
       </div>
+
+      {/* Native Browser Notifications Setup Banner */}
+      {notificationStatus !== "unsupported" && (
+        <div className="mb-5 p-3 sm:p-4 rounded-2xl bg-[#090C16]/80 border border-indigo-950/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative z-10 animate-fadeIn">
+          <div className="flex items-start gap-3">
+            <div className={`p-2.5 rounded-xl shrink-0 ${
+              notificationStatus === "granted"
+                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                : notificationStatus === "denied"
+                  ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                  : "bg-pink-500/10 text-pink-400 border border-pink-500/20 animate-pulse"
+            }`}>
+              <Bell className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-sans font-bold text-white flex flex-wrap items-center gap-1.5">
+                <span>Notificaciones del Navegador</span>
+                {notificationStatus === "granted" ? (
+                  <span className="text-[9px] bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-md font-sans uppercase font-black tracking-wide border border-emerald-500/25">
+                    Habilitadas
+                  </span>
+                ) : notificationStatus === "denied" ? (
+                  <span className="text-[9px] bg-rose-500/15 text-rose-400 px-2 py-0.5 rounded-md font-sans uppercase font-black tracking-wide border border-rose-500/25">
+                    Bloqueadas
+                  </span>
+                ) : (
+                  <span className="text-[9px] bg-pink-500/15 text-pink-400 px-2 py-0.5 rounded-md font-sans uppercase font-black tracking-wide border border-pink-500/25 animate-pulse">
+                    Configurar
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1 leading-relaxed font-sans max-w-xl">
+                {notificationStatus === "granted"
+                  ? "¡Excelente! Recibirás avisos nativos en tu pantalla apenas se detecte una baja de precio en tus productos guardados."
+                  : notificationStatus === "denied"
+                    ? "Las alertas nativas están desactivadas. Para recibirlas, hacé clic en el candado de la barra de direcciones y permití las notificaciones."
+                    : "Habilitá avisos en tiempo real para recibir una alerta nativa del sistema operativo en el momento exacto en que baje un precio."}
+              </p>
+            </div>
+          </div>
+          {notificationStatus === "default" && (
+            <button
+              onClick={handleEnableNotifications}
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-display font-black text-[11px] uppercase tracking-wider transition-all duration-300 hover:scale-102 active:scale-98 shadow-lg shadow-pink-500/15 cursor-pointer shrink-0 self-stretch sm:self-center text-center"
+            >
+              Habilitar
+            </button>
+          )}
+          {notificationStatus === "granted" && (
+            <button
+              onClick={sendTestNotification}
+              className="w-full sm:w-auto px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-display font-bold text-[10px] uppercase tracking-wider transition-all border border-slate-800 cursor-pointer shrink-0 self-stretch sm:self-auto text-center"
+            >
+              Probar aviso
+            </button>
+          )}
+        </div>
+      )}
 
       {alerts.length === 0 ? (
         <div className="py-8 text-center max-w-sm mx-auto flex flex-col items-center justify-center relative z-10">

@@ -18,11 +18,10 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
   };
 
   const suggestions = [
-    "Yerba Mate Playadito 1kg",
-    "Smart TV 50 Smart",
-    "Protector Solar Dermaglós",
+    "Yerba",
     "Zapatillas Running",
-    "Celular Motorola Edge",
+    "Celular Android",
+    "TV 50 pulgadas",
   ];
 
   return (
@@ -182,7 +181,7 @@ export default function SearchBox({ onSearch, isLoading }: SearchBoxProps) {
           ) : (
             <>
               <Search className="w-5 h-5 stroke-[3px] text-yellow-300" />
-              <span className="text-[#030712] bg-[#FFE600] px-4.5 py-2 rounded-xl shadow-[0_2px_15px_rgba(255,230,0,0.6)] tracking-wider font-extrabold text-sm uppercase transform hover:scale-105 active:scale-95 transition-transform duration-200">
+              <span className="text-[#030712] bg-[#FFE600] px-4.5 py-2 rounded-xl shadow-[0_2px_15px_rgba(255,230,0,0.6)] tracking-wider font-extrabold text-sm uppercase transform hover:scale-105 active:scale-95 transition-transform duration-200 animate-blink-fast">
                 Rastrear Precios 🚀
               </span>
             </>
